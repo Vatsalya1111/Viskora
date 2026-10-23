@@ -249,7 +249,7 @@ export const SEEDED_ATTEMPTS = [
     transcriptionChecked: false,
     timestamp: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
   },
-];
+].map(attempt => ({ ...attempt, isExample: true }));
 
 /** Prerequisite data per concept */
 export const PREREQUISITES = {

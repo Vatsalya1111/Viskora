@@ -1,6 +1,7 @@
 /* ── Upload Modal ────────────────────────────────────────── */
 import React, { useState, useRef, useCallback } from 'react';
 import { useApp } from '../store/AppContext.jsx';
+import { submitAnalysis } from '../data/analysisApi.js';
 import './UploadModal.css';
 
 const CloseIcon = () => (
@@ -10,23 +11,49 @@ const CloseIcon = () => (
 );
 
 export default function UploadModal() {
-  const { state, dispatch, selectedAttempt, selectedMethod } = useApp();
+  const { state, dispatch } = useApp();
   const [dragging, setDragging] = useState(false);
 
-  // Initialize transcription text from actual problem/steps
-  const defaultText = selectedAttempt?.transcriptionRaw ||
-    (selectedMethod?.steps
-      ? selectedMethod.steps.map((s, i) => `Step ${i + 1}: ${s.latex || s.note}`).join('\n')
-      : selectedAttempt?.problem?.displayText || '');
-
-  const [transcriptionText, setTranscriptionText] = useState(defaultText);
+  const [transcriptionText, setTranscriptionText] = useState('');
+  const [formError, setFormError] = useState('');
+  const [analysing, setAnalysing] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [file, setFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleFile = useCallback((file) => {
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setFormError('Please upload a PNG, JPG, or WebP image of your working.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) { setFormError('The image must be 10 MB or smaller.'); return; }
+    setFormError('');
+    setFile(file);
     const url = URL.createObjectURL(file);
     dispatch({ type: 'SET_UPLOAD_PREVIEW', payload: url });
   }, [dispatch]);
+
+  async function handleAnalyse() {
+    if (!question.trim() && !transcriptionText.trim() && !file) {
+      setFormError('Enter the question and steps, or upload an image.');
+      return;
+    }
+    setFormError('');
+    setAnalysing(true);
+    try {
+      const result = await submitAnalysis({ question: question.trim(), text: transcriptionText.trim(), file });
+      if (result.status === 'needs_confirmation') {
+        setQuestion(result.transcription.question || '');
+        setTranscriptionText(result.transcription.steps.join('\n'));
+        setFile(null);
+        setFormError(`Please confirm this transcription before analysis (confidence ${Math.round(result.transcription.confidence * 100)}%).`);
+        return;
+      }
+      dispatch({ type: 'CONFIRM_TRANSCRIPTION', payload: { attempt: result.attempt, imageUrl: state.uploadPreview } });
+    } catch (error) {
+      setFormError(error.message || 'Analysis failed. Please try again.');
+    } finally { setAnalysing(false); }
+  }
 
   function handleDrop(e) {
     e.preventDefault();
@@ -67,10 +94,15 @@ export default function UploadModal() {
                 <div className="upload-drop-text">
                   <strong>Drop image here</strong> or <span className="link">browse</span>
                 </div>
-                <div className="upload-drop-hint">PNG, JPG, PDF · Max 10 MB</div>
+                <div className="upload-drop-hint">PNG, JPG, or WebP · Max 10 MB</div>
               </>
             )}
-            <input ref={fileInputRef} type="file" accept="image/*" className="visually-hidden" onChange={handleFileInput} id="file-input" />
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="visually-hidden" onChange={handleFileInput} id="file-input" />
+          </div>
+
+          <div className="modal-section">
+            <label className="modal-label" htmlFor="question-input">Question</label>
+            <textarea id="question-input" className="input-field modal-textarea" value={question} onChange={e => setQuestion(e.target.value)} rows={2} placeholder="e.g. Differentiate y = x² sin(x)" />
           </div>
 
           {/* Transcription */}
@@ -85,15 +117,16 @@ export default function UploadModal() {
               value={transcriptionText}
               onChange={e => setTranscriptionText(e.target.value)}
               rows={4}
-              placeholder="Type or paste your step-by-step working…"
+              placeholder="Type each step on its own line (helps line-by-line diagnosis)…"
             />
           </div>
 
           {/* Info box */}
           <div className="modal-info">
             <span className="modal-info-icon">ℹ️</span>
-            <span>Viskora will check your transcription against the uploaded image before trusting the diagnosis.</span>
+            <span>AI reads the handwriting and reviews the solution steps. Confirm the transcription if any symbols or lines are unclear.</span>
           </div>
+          {formError && <div className="modal-error">{formError}</div>}
         </div>
 
         {/* Footer */}
@@ -102,9 +135,10 @@ export default function UploadModal() {
           <button
             className="btn btn-primary"
             id="btn-confirm-transcription"
-            onClick={() => dispatch({ type: 'CONFIRM_TRANSCRIPTION', payload: { text: transcriptionText, attemptId: selectedAttempt?.id } })}
+            disabled={analysing}
+            onClick={handleAnalyse}
           >
-            Confirm &amp; Analyse
+            {analysing ? 'Analysing…' : 'Confirm & Analyse'}
           </button>
         </div>
       </div>

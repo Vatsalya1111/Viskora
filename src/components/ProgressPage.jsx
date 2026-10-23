@@ -83,6 +83,7 @@ export default function ProgressPage() {
         <section className="pp-card" aria-label="Mastery overview">
           <h2 className="pp-card-title">Mastery per concept</h2>
           <div className="pp-mastery-list">
+            {Object.keys(mastery).length === 0 && <p className="pp-empty">Progress will appear here after you work through problems.</p>}
             {Object.entries(mastery).map(([concept, score]) => {
               const trend = TRENDS[concept] ?? [score];
               const color = masteryColor(score);
@@ -106,6 +107,7 @@ export default function ProgressPage() {
         <section className="pp-card" aria-label="Recurring misconceptions">
           <h2 className="pp-card-title">Recurring misconceptions</h2>
           <div className="pp-misc-list">
+            {Object.keys(misconceptionCounts).length === 0 && <p className="pp-empty">No patterns to show yet.</p>}
             {Object.entries(misconceptionCounts)
               .sort((a, b) => b[1] - a[1])
               .map(([id, count]) => {
@@ -138,6 +140,7 @@ export default function ProgressPage() {
               </tr>
             </thead>
             <tbody>
+              {attempts.length === 0 && <tr><td colSpan="5" className="pp-empty">No attempts yet. Upload your working to get started.</td></tr>}
               {attempts.map(a => {
                 const wrongMethods = a.problem.methods.filter(m => m.steps.some(s => s.verdict === 'wrong'));
                 const verdict = wrongMethods.length > 0 ? 'Misconception found' : 'All correct';

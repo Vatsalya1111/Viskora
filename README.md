@@ -42,7 +42,7 @@ npm -v
 
 ### Running the Application
 
-1. **Start the local development server:**
+1. **Start the local development server** (this starts the analysis endpoint too):
    ```bash
    npm run dev
    ```
@@ -57,6 +57,8 @@ npm -v
 | Command | Description |
 | :--- | :--- |
 | `npm run dev` | Starts Vite dev server with Hot Module Replacement (HMR). |
+| `npm run api` | Starts the local analysis API on port 3001. |
+| `npm test` | Runs the analysis unit tests. |
 | `npm run build` | Builds the optimized production bundle in the `dist/` directory. |
 | `npm run preview` | Previews the production build locally. |
 
@@ -80,3 +82,7 @@ npm -v
 - **Collapsible Prerequisites Checklist**: Interactive vertical checklist enabling students to review foundational topics and track their mastery.
 - **Context-Aware Chatbot with Fallback Engine**: Socratic AI assistant providing hints, rule statements, and examples scoped to individual solution steps.
 - **Adaptive Understanding Check**: 3-question sequence to confirm mastery or distinguish deep misconceptions from one-off slips.
+
+### Analysis service configuration
+
+Typed submissions use the local API. The verifier currently supports the product rule for `x^2 sin(x)` and linear-over-linear quotient derivatives; other expressions are reported as uncertain. Handwritten transcription uses Gemini 3.5 Flash-Lite when `GEMINI_API_KEY` is configured. Paste your key into the `GEMINI_API_KEY=` line in the project-root `.env` file, then restart `npm run dev`. The `.env` file is private and ignored by Git. Each laptop needs its own key; keys are not included when the project is copied or cloned. `npm run api` starts the standalone API for deployments where it runs separately from Vite; route `/api` to that process.

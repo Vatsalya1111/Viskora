@@ -71,6 +71,7 @@
 }
 .sidebar-nav::-webkit-scrollbar { width: 3px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+.sidebar-empty { padding: 10px; color: var(--sidebar-text-muted); font-size: 12px; line-height: 1.5; }
 
 /* Topic group */
 .sidebar-topic-group { margin-bottom: 4px; }
@@ -133,6 +134,7 @@
   margin-left: auto;
   flex-shrink: 0;
 }
+.sidebar-sample-badge { margin-left: auto; color: var(--sidebar-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
 
 /* Progress link (pinned bottom) */
 .sidebar-progress-link {

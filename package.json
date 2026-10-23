@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "api": "node server/index.js",
+    "test": "node --test",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "type": "commonjs",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Vatsalya1111/Viskora.git"

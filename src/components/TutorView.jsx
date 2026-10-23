@@ -1,5 +1,5 @@
 /* ── Centre Panel – Tutor View ──────────────────────────── */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../store/AppContext.jsx';
 import { Math as MathEl } from './MathRenderer.jsx';
 import StepRow from './StepRow.jsx';
@@ -28,8 +28,13 @@ export default function TutorView() {
   const { state, dispatch, selectedAttempt, selectedMethod } = useApp();
   const [imgError, setImgError] = useState(false);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [selectedAttempt?.id, selectedAttempt?.uploadedImageUrl, state.uploadPreview]);
+
   if (!selectedAttempt) {
     return (
+      <>
       <div className="tutor-empty">
         <div className="tutor-empty-inner">
           <div className="tutor-empty-icon">📐</div>
@@ -40,6 +45,8 @@ export default function TutorView() {
           </button>
         </div>
       </div>
+      {state.uploadModalOpen && <UploadModal />}
+      </>
     );
   }
 
@@ -89,6 +96,7 @@ export default function TutorView() {
             </div>
             <div className="working-image-footer">
               <span className="working-image-label">Uploaded working</span>
+              {selectedAttempt.transcriptionConfidence != null && <span className="working-image-label">OCR confidence: {Math.round(selectedAttempt.transcriptionConfidence * 100)}%</span>}
               <button
                 className="check-transcription-btn"
                 id="btn-check-transcription"
@@ -124,7 +132,7 @@ export default function TutorView() {
         <div className="tab-bar" role="tablist" aria-label="Solution methods">
           {methods.map(method => {
             const hasError = method.steps.some(s => s.verdict === 'wrong');
-            const allCorrect = method.steps.every(s => s.verdict === 'correct');
+            const allCorrect = method.steps.length > 0 && method.steps.every(s => s.verdict === 'correct');
             return (
               <button
                 key={method.id}
@@ -143,21 +151,39 @@ export default function TutorView() {
         </div>
 
         {/* Misconception card */}
-        {selectedMethod?.misconceptionId && (
+        {selectedMethod?.diagnosis && (
+          <div className="misconception-card" role="status">
+            <h3>{selectedMethod.diagnosis}</h3>
+            <p>{selectedMethod.steps.find(step => step.verdict === 'wrong')?.note}</p>
+            {selectedMethod.diagnosisEvidence && <p><strong>Evidence:</strong> {selectedMethod.diagnosisEvidence}</p>}
+            {selectedMethod.confidence && <small>Confidence: {selectedMethod.confidence}</small>}
+            {selectedMethod.correctedStep && <p><strong>Corrected working step:</strong> <MathEl latex={selectedMethod.correctedStep} /></p>}
+            {selectedMethod.correctAnswer && <p><strong>Correct final answer:</strong> <MathEl latex={selectedMethod.correctAnswer} /></p>}
+            {selectedMethod.followUpQuestion && <p><strong>Diagnostic question:</strong> {selectedMethod.followUpQuestion}</p>}
+            {selectedMethod.practiceQuestions?.length > 0 && <div><strong>Practice:</strong><ul>{selectedMethod.practiceQuestions.map(question => <li key={question}>{question}</li>)}</ul></div>}
+          </div>
+        )}
+        {selectedMethod?.misconceptionId && !selectedMethod?.diagnosis && (
           <MisconceptionCard />
         )}
-        {!selectedMethod?.misconceptionId && (
+        {selectedMethod?.verificationStatus === 'no_error' && (
           <div className="method-all-correct">
             <span className="method-correct-icon">🎉</span>
             <div>
-              <strong>All steps correct!</strong>
-              <p>Your solution using this method is fully correct.</p>
+              <strong>AI review found no mathematical error.</strong>
+              <p>{selectedMethod.steps[0]?.note}</p>
             </div>
           </div>
         )}
+        {selectedMethod?.verificationStatus === 'uncertain' && (
+          <div className="method-all-correct" role="status"><div><strong>AI could not verify this work reliably.</strong><p>{selectedMethod.verificationReason || selectedMethod.steps.find(step => step.verdict === 'uncertain')?.note || 'Check the transcription and try again.'}</p></div></div>
+        )}
+        {selectedMethod?.verificationStatus === 'error_found' && (selectedMethod.correctedStep || selectedMethod.correctAnswer) && (
+          <div className="method-all-correct"><div><strong>{selectedMethod.correctedStep ? 'Corrected step' : 'Corrected answer'}</strong><p><MathEl latex={selectedMethod.correctedStep || selectedMethod.correctAnswer} /></p></div></div>
+        )}
 
         {/* Understanding check */}
-        {selectedMethod?.misconceptionId && (
+        {selectedMethod?.misconceptionId && !selectedMethod?.diagnosis && (
           <UnderstandingCheck />
         )}
 

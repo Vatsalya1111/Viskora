@@ -55,7 +55,7 @@ export default function StepRow({ step, index, selected, onClick }) {
         {step.verdict === 'wrong' && (
           <span className="step-status-pill pill-err">
             <WrongIcon />
-            <span>Check rule</span>
+            <span>Incorrect</span>
           </span>
         )}
         {step.verdict === 'valid-alt' && (

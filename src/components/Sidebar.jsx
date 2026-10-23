@@ -42,10 +42,10 @@ const ChevronRight = () => (
 
 export default function Sidebar() {
   const { state, dispatch, attemptsByTopic } = useApp();
-  const [openTopics, setOpenTopics] = useState(Object.keys(attemptsByTopic));
+  const [closedTopics, setClosedTopics] = useState([]);
 
   function toggleTopic(topic) {
-    setOpenTopics(prev =>
+    setClosedTopics(prev =>
       prev.includes(topic) ? prev.filter(t => t !== topic) : [...prev, topic]
     );
   }
@@ -87,18 +87,19 @@ export default function Sidebar() {
       <div className="sidebar-section-label">Recent attempts</div>
 
       <nav className="sidebar-nav" aria-label="Recent attempts">
+        {Object.keys(attemptsByTopic).length === 0 && <p className="sidebar-empty">No attempts yet. Upload your working to get started.</p>}
         {Object.entries(attemptsByTopic).map(([topic, attempts]) => (
           <div key={topic} className="sidebar-topic-group">
             <button
               className="sidebar-topic-header"
               onClick={() => toggleTopic(topic)}
-              aria-expanded={openTopics.includes(topic)}
+              aria-expanded={!closedTopics.includes(topic)}
             >
               <span>{topic}</span>
-              <ChevronDown open={openTopics.includes(topic)} />
+              <ChevronDown open={!closedTopics.includes(topic)} />
             </button>
 
-            {openTopics.includes(topic) && (
+            {!closedTopics.includes(topic) && (
               <ul className="sidebar-attempt-list" role="list">
                 {attempts.map(attempt => (
                   <li key={attempt.id}>
@@ -109,6 +110,7 @@ export default function Sidebar() {
                     >
                       <TopicIcon />
                       <span className="truncate">{getConceptLabel(attempt)}</span>
+                      {attempt.isExample && <span className="sidebar-sample-badge">Sample</span>}
                       {state.selectedAttemptId === attempt.id && (
                         <span className="sidebar-active-dot" />
                       )}

@@ -5,22 +5,20 @@
 
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 import {
-  SEEDED_ATTEMPTS,
   MISCONCEPTION_CATALOGUE,
   PREREQUISITES,
-  INITIAL_MASTERY,
   CHATBOT_RESPONSES,
 } from '../data/catalogue.js';
 import { generateChatbotResponse } from '../data/chatbot.js';
 
 /* ── Initial State ──────────────────────────────────────── */
 const initialState = {
-  studentId: 'stu-demo',
-  attempts: SEEDED_ATTEMPTS,
-  selectedAttemptId: SEEDED_ATTEMPTS[0].id,
-  selectedMethodId: SEEDED_ATTEMPTS[0].problem.methods[0].id,
+  studentId: 'student',
+  attempts: [],
+  selectedAttemptId: null,
+  selectedMethodId: null,
   selectedStepId: null,
-  mastery: { ...INITIAL_MASTERY },
+  mastery: {},
   prereqStatus: {}, // keyed by prereq id -> 'good' | 'needs-review'
 
   // Understanding check state
@@ -56,6 +54,7 @@ function reducer(state, action) {
         selectedAttemptId: action.payload,
         selectedMethodId: attempt?.problem.methods[0].id ?? null,
         selectedStepId: null,
+        uploadPreview: null,
         checkState: initialState.checkState,
         chatMessages: {},
       };
@@ -249,19 +248,32 @@ function reducer(state, action) {
     case 'CLOSE_UPLOAD_MODAL': return { ...state, uploadModalOpen: false, uploadPreview: null };
     case 'SET_UPLOAD_PREVIEW': return { ...state, uploadPreview: action.payload };
     case 'CONFIRM_TRANSCRIPTION': {
-      const { text } = action.payload || {};
+      const { attempt, imageUrl } = action.payload || {};
+      if (!attempt) return state;
+      const analysed = { ...attempt, uploadedImageUrl: imageUrl || null };
+      const method = analysed.problem.methods[0];
+      const focusStepId = method.steps.find(s => s.verdict === 'wrong')?.id
+        ?? method.steps[0]?.id
+        ?? null;
+      let chatMessages = {};
+      if (focusStepId && method.misconceptionId && CHATBOT_RESPONSES[method.misconceptionId]) {
+        chatMessages[focusStepId] = CHATBOT_RESPONSES[method.misconceptionId].map((m, i) => ({
+          ...m,
+          id: `msg-seed-${i}`,
+          timestamp: new Date(Date.now() - (3 - i) * 60 * 1000).toISOString(),
+        }));
+      }
       return {
         ...state,
         uploadModalOpen: false,
-        attempts: state.attempts.map(a =>
-          a.id === state.selectedAttemptId
-            ? {
-                ...a,
-                transcriptionChecked: true,
-                transcriptionRaw: text ?? a.transcriptionRaw,
-              }
-            : a
-        ),
+        uploadPreview: analysed.uploadedImageUrl,
+        transcriptionRaw: analysed.transcriptionRaw,
+        selectedAttemptId: analysed.id,
+        selectedMethodId: method.id,
+        selectedStepId: focusStepId,
+        checkState: initialState.checkState,
+        chatMessages,
+        attempts: [analysed, ...state.attempts],
       };
     }
 
@@ -281,11 +293,12 @@ export function AppProvider({ children }) {
   const selectedAttempt = state.attempts.find(a => a.id === state.selectedAttemptId);
   const selectedMethod  = selectedAttempt?.problem.methods.find(m => m.id === state.selectedMethodId);
   const selectedStep    = selectedMethod?.steps.find(s => s.id === state.selectedStepId);
-  const misconception   = MISCONCEPTION_CATALOGUE.find(m => m.id === selectedMethod?.misconceptionId);
+  const misconception   = selectedMethod?.diagnosis
+    ? { name: selectedMethod.diagnosis, description: selectedMethod.diagnosis }
+    : MISCONCEPTION_CATALOGUE.find(m => m.id === selectedMethod?.misconceptionId);
 
   // Resolve prerequisites dynamically based on actual method or attempt
-  const rawPrerequisites =
-    selectedMethod?.prerequisites ??
+  const rawPrerequisites = selectedMethod?.prerequisites ??
     (selectedMethod?.misconceptionId ? PREREQUISITES[selectedMethod.misconceptionId] : null) ??
     (misconception?.id ? PREREQUISITES[misconception.id] : null) ??
     (selectedAttempt?.concept ? PREREQUISITES[selectedAttempt.concept] : null) ??
