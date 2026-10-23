@@ -74,6 +74,24 @@ export async function handleAnalysisRequest(request, response) {
   }
 }
 
+const TRANSCRIPTION_STOPWORDS = /^(?:correct|incorrect|wrong|right|corrected|solution|working|answer|ans|step|steps|question|q|therefore|hence|thus|so|because|check|note|final|final answer|your answer|my answer)[\s:!.→➡➜-]*$/i;
+
+export function cleanTranscriptionLine(value) {
+  let line = String(value || '').trim()
+    .replace(/^(?:[\u2192\u27a1\u2794➜➝]|->)+\s*/u, '')
+    .replace(/^(?:step|line)\s*\d+\s*[:.)-]\s*/i, '')
+    .replace(/^(?:correct|incorrect|wrong|right|corrected)\s*[:.-]\s*/i, '')
+    .trim();
+  if (!line || TRANSCRIPTION_STOPWORDS.test(line)) return '';
+  return line;
+}
+
+function cleanTranscriptionQuestion(value) {
+  const question = String(value || '').trim();
+  if (!question || /^(?:transcribed working|handwritten working|solution|working|question)$/i.test(question)) return '';
+  return question;
+}
+
 export function transcriptionNeedsConfirmation(transcription) {
   return !transcription || transcription.unclear === true || Number(transcription.confidence) < 0.65
     || !Array.isArray(transcription.steps) || transcription.steps.length === 0

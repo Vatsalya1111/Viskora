@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeSubmission, transcribeImage } from './analysis.js';
+import { analyzeSubmission, cleanTranscriptionLine, transcribeImage, verifyAttemptWithAI } from './analysis.js';
+
+test('removes transcription annotations without changing mathematical lines', () => {
+  assert.equal(cleanTranscriptionLine('→ Incorrect'), '');
+  assert.equal(cleanTranscriptionLine('Step 4: 2x^2 + 2'), '2x^2 + 2');
+  assert.equal(cleanTranscriptionLine('for x = 2, L = 2^2 + 1'), 'for x = 2, L = 2^2 + 1');
+});
 
 test('recognizes a valid product-rule derivative', () => {
   const result = analyzeSubmission({ question: 'Differentiate y = x^2 sin(x)', text: 'dy/dx = 2x sin(x) + x^2 cos(x)' });
@@ -24,6 +30,36 @@ test('highlights an earlier invalid derivative transition even if later correcte
 test('accepts reordered equivalent product-rule terms', () => {
   const result = analyzeSubmission({ question: 'Differentiate y = x^2 sin(x)', text: 'x^2 cos(x) + 2x sin(x)' });
   assert.equal(result.analysisStatus, 'no_error');
+});
+
+test('provides a distinct alternative method for verified product-rule work', async () => {
+  const question = 'Differentiate y = x^2 sin(x)';
+  const text = 'dy/dx = 2x sin(x) + x^2 cos(x)';
+  const previousKey = process.env.GEMINI_API_KEY;
+  const previousFetch = globalThis.fetch;
+  process.env.GEMINI_API_KEY = 'test-key';
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({
+      alternativeMethod: {
+        available: true,
+        label: 'Logarithmic differentiation',
+        steps: ['ln y = 2 ln x + ln(sin x)', 'dy/dx = 2x sin x + x^2 cos x'],
+        keyDifference: 'Converts products into sums before differentiating.',
+        finalAnswer: "y' = 2x sin x + x^2 cos x",
+        verified: true,
+      },
+    }) }] } }],
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  try {
+    const result = analyzeSubmission({ question, text });
+    await verifyAttemptWithAI(result, { question, text });
+    assert.equal(result.problem.methods[0].alternativeMethod?.label, 'Logarithmic differentiation');
+    assert.equal(result.problem.methods[0].alternativeMethod?.steps.length, 2);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousKey;
+  }
 });
 
 test('verifies the uploaded linear-over-linear quotient derivative', () => {

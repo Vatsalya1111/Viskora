@@ -24,7 +24,11 @@ export async function submitAnalysis({ question, text, file }) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     // Image transcription and the AI math review are two sequential Gemini calls.
     signal: AbortSignal.timeout(130000),
-    body: JSON.stringify({ question, text, image, mimeType }),
+    body: JSON.stringify({
+      ...(question?.trim() ? { question: question.trim() } : {}),
+      ...(text?.trim() ? { text: text.trim() } : {}),
+      ...(image ? { image, mimeType } : {}),
+    }),
     });
   } catch (error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') throw new Error('Analysis took too long. Please retry.');

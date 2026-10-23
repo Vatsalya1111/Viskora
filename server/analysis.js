@@ -1,5 +1,23 @@
 import { validateVisualization } from '../shared/mathExpression.js';
 
+const TRANSCRIPTION_STOPWORDS = /^(?:correct|incorrect|wrong|right|corrected|solution|working|answer|ans|step|steps|question|q|therefore|hence|thus|so|because|check|note|final|final answer|your answer|my answer)[\s:!.→➡➜-]*$/i;
+
+export function cleanTranscriptionLine(value) {
+  let line = String(value || '').trim()
+    .replace(/^(?:[\u2192\u27a1\u2794➜➝]|->)+\s*/u, '')
+    .replace(/^(?:step|line)\s*\d+\s*[:.)-]\s*/i, '')
+    .replace(/^(?:correct|incorrect|wrong|right|corrected)\s*[:.-]\s*/i, '')
+    .trim();
+  if (!line || TRANSCRIPTION_STOPWORDS.test(line)) return '';
+  return line;
+}
+
+function cleanTranscriptionQuestion(value) {
+  const question = String(value || '').trim();
+  if (!question || /^(?:transcribed working|handwritten working|solution|working|question)$/i.test(question)) return '';
+  return question;
+}
+
 const normalize = (value) => String(value || '').toLowerCase()
   .replace(/\\(?:left|right)/g, '').replace(/\\(?:,|;|!)/g, '')
   .replace(/\\(?:cdot|times)/g, '*').replace(/\\(?:sin|cos|tan)/g, (m) => m.slice(1))
@@ -27,6 +45,7 @@ function inferMathTopic(question, text) {
   if (/\b(vector|scalar product|dot product|cross product|gradient|divergence|curl)\b/.test(source)) return 'Vector Calculus';
   return 'Other';
 }
+
 function parseLinear(value) {
   const terms = String(value).replace(/[()\s*]/g, '').match(/[+-]?[^+-]+/g) || [];
   let x = 0; let constant = 0;
@@ -36,7 +55,23 @@ function parseLinear(value) {
       x += coefficient === '' || coefficient === '+' ? 1 : coefficient === '-' ? -1 : Number(coefficient);
     } else constant += Number(term);
   }
+
   return Number.isFinite(x) && Number.isFinite(constant) ? { x, constant } : null;
+}
+
+function parseAlternativeMethod(value) {
+  const alternative = value?.alternativeMethod;
+  if (alternative?.available !== true || alternative.verified !== true
+    || !Array.isArray(alternative.steps) || alternative.steps.length < 2
+    || !alternative.steps.every(step => typeof step === 'string' && step.trim())
+    || typeof alternative.finalAnswer !== 'string' || !alternative.finalAnswer.trim()) return null;
+  return {
+    label: String(alternative.label || 'Alternative method').trim(),
+    steps: alternative.steps.map(step => step.trim()).slice(0, 12),
+    keyDifference: String(alternative.keyDifference || 'This uses a distinct valid approach.').trim(),
+    finalAnswer: alternative.finalAnswer.trim(),
+    aiChecked: true,
+  };
 }
 
 function verifySquareRootQuotient(question, steps) {
@@ -196,7 +231,15 @@ export function analyzeSubmission({ question = '', text = '', image = null }) {
     status: 'uncertain', isVerified: false,
     reason: 'I could not match this submission to a supported check. Put the full problem in Question and each solution line in Transcription.',
   };
-  const concept = inferMathTopic(problem, steps.join('\n'));
+  const topicSource = `${problem} ${steps.join(' ')}`;
+  const topic = /\b(laplace|inverse\s+laplace|transform)\b/i.test(topicSource) ? 'Laplace transforms'
+    : /\b(integrat(?:e|ion|ing)|∫|\\int|antiderivative)\b/i.test(topicSource) ? 'Integration'
+      : /\b(differentiat(?:e|ion|ing)|derivative|dy\s*\/\s*dx|d\s*\/\s*dx|implicit)\b/i.test(topicSource) ? 'Differentiation'
+        : /\b(matrix|matrices|determinant|eigenvalue|eigenvector|linear\s+system)\b/i.test(topicSource) ? 'Linear algebra'
+          : /\b(probability|permutation|combination|distribution|random\s+variable)\b/i.test(topicSource) ? 'Probability'
+            : /\b(differential\s+equation|\bd[xy]\s*\/\s*dx|\bdy\/dx)\b/i.test(topicSource) ? 'Differential equations'
+              : 'Other';
+  const concept = topic === 'Differentiation' ? (verification?.diagnosis || 'Differentiation') : topic;
   const mapped = steps.map((value, index) => ({
     id: `submitted-${index + 1}`, latex: value,
     verdict: verification?.status === 'error_found' && index === verification.firstInvalidTransition ? 'wrong'
@@ -205,7 +248,7 @@ export function analyzeSubmission({ question = '', text = '', image = null }) {
       : verification?.status === 'no_error' ? verification.reason : verification?.reason || 'Not verified by the supported symbolic checks.',
   }));
   return {
-    id: `attempt-${Date.now()}`, studentId: 'student', topic: 'Mathematics', concept,
+    id: `attempt-${Date.now()}`, studentId: 'student', topic, concept,
     problem: { id: `problem-${Date.now()}`, latex: questionForDisplay(problem || 'Transcribed working'), displayText: problem || 'Transcribed working', methods: [{
       id: `method-${Date.now()}`, label: 'Submitted solution', steps: mapped,
       correctAnswer: verification?.corrected || '', confidence: verification?.confidence || null,
@@ -227,7 +270,7 @@ export async function transcribeImage({ image, mimeType }) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', signal: AbortSignal.timeout(60000), headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [
-      { text: 'Read the handwritten mathematics in the image. Do not solve it or invent missing writing. Return one JSON object only, with exactly these fields: question (string, use an empty string if absent), steps (array of strings in written order), confidence (number from 0 to 1), unclear (boolean). Put each complete handwritten line in a separate steps item. Preserve mathematical notation as plain text or LaTeX. Set confidence below 0.65 and unclear=true if any important writing is hard to read.' },
+      { text: 'Transcribe only the handwritten mathematical content in the image. Ignore printed UI text, headings, labels, arrows, check marks, annotations, and words such as correct, incorrect, wrong, solution, answer, therefore, or step. Do not solve, correct, simplify, infer, or invent missing writing. Return one JSON object only, with exactly these fields: question (string, use an empty string if no problem statement is handwritten), steps (array of strings in written order), confidence (number from 0 to 1), unclear (boolean). Put each handwritten mathematical equation or matrix line in a separate steps item. Preserve exponents, fractions, signs, limits, bounds, matrix rows, and variable names as plain text or LaTeX. Never return prose-only steps. Set confidence below 0.65 and unclear=true if any important symbol or line is hard to read.' },
       { inline_data: { mime_type: mimeType, data: image } },
     ] }], generationConfig: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 2048 } }),
   });
@@ -245,10 +288,10 @@ export async function transcribeImage({ image, mimeType }) {
       result = JSON.parse(text.slice(first, last + 1));
     }
     if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('Model response was not an object.');
-    const question = typeof result.question === 'string' ? result.question.trim() : '';
+    const question = cleanTranscriptionQuestion(result.question);
     const rawSteps = Array.isArray(result.steps) ? result.steps : typeof result.steps === 'string' ? result.steps.split(/\r?\n/) : [];
-    const steps = rawSteps.map(step => typeof step === 'string' ? step.trim()
-      : step && typeof step === 'object' ? String(step.text || step.latex || '').trim() : '').filter(Boolean);
+    const steps = rawSteps.map(step => cleanTranscriptionLine(typeof step === 'string' ? step
+      : step && typeof step === 'object' ? String(step.text || step.latex || '') : '')).filter(Boolean);
     const parsedConfidence = typeof result.confidence === 'number' ? result.confidence
       : Number.parseFloat(String(result.confidence || '').replace('%', '')) / (String(result.confidence || '').includes('%') ? 100 : 1);
     const confidence = Number.isFinite(parsedConfidence)
@@ -349,11 +392,43 @@ async function getCheckedVisualization(question, text) {
   } catch { return fallback; }
 }
 
+async function getAlternativeMethodWithAI({ question, text, verifiedAnswer = '' }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST', signal: AbortSignal.timeout(45000), headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: [
+        'Find one genuinely distinct, standard solution method for this engineering mathematics problem.',
+        'The alternative must apply to the exact same problem, contain complete ordered steps, and finish with the same mathematically equivalent result as the submitted or verified answer.',
+        'Do not merely rename or reword the submitted method. If no distinct reliable method is available, return available=false. Independently check every step and the final answer before setting verified=true.',
+        'Return JSON only: {"alternativeMethod":{"available":true,"label":"method name","steps":["LaTeX step 1","LaTeX step 2"],"keyDifference":"short comparison","finalAnswer":"LaTeX result","verified":true}}. Return available=false with empty fields when uncertain.',
+        `Problem: ${question || '(not stated)'}`,
+        `Submitted working: ${text || '(not available)'}`,
+        `Verified answer, if available: ${verifiedAnswer || '(derive and verify it)'}`,
+      ].join('\n') }] }], generationConfig: { responseMimeType: 'application/json', thinkingConfig: { thinkingLevel: 'minimal' }, maxOutputTokens: 1800 } }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const raw = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').filter(Boolean).join('') || '';
+    const content = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    return parseAlternativeMethod(JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)));
+  } catch (error) {
+    console.warn('Alternative method generation unavailable:', error.message);
+    return null;
+  }
+}
+
 export async function verifyAttemptWithAI(attempt, { question, text }) {
   // Keep exact, independently computed checks authoritative. Ask Gemini only
   // for an optional graph when one of these checks proves the work correct.
   if (attempt.verification?.isVerified === true && ['no_error', 'error_found'].includes(attempt.verification.status)) {
     const method = attempt.problem.methods[0];
+    method.alternativeMethod = await getAlternativeMethodWithAI({
+      question,
+      text,
+      verifiedAnswer: method.correctAnswer,
+    });
     if (attempt.verification.status === 'no_error') method.visualization = await getCheckedVisualization(question, text);
     else if (method.correctAnswer) method.visualization = await getCheckedVisualization(question, `${text}\nVerified corrected answer: ${method.correctAnswer}`);
     return attempt;
@@ -415,12 +490,7 @@ export async function verifyAttemptWithAI(attempt, { question, text }) {
   method.correctedStep = typeof result.correctedStep === 'string' ? result.correctedStep : '';
   method.correctAnswer = typeof result.correctedAnswer === 'string' ? result.correctedAnswer : '';
   method.prerequisiteConcepts = Array.isArray(result.prerequisites) ? result.prerequisites.filter(item => item && typeof item.name === 'string' && typeof item.explanation === 'string').slice(0, 5) : [];
-  const alternative = result.alternativeMethod;
-  method.alternativeMethod = alternative?.available === true && alternative.verified === true
-    && Array.isArray(alternative.steps) && alternative.steps.length >= 2
-    && typeof alternative.finalAnswer === 'string' && alternative.finalAnswer.trim()
-    ? { label: String(alternative.label || 'Alternative method'), steps: alternative.steps.map(String).slice(0, 12), keyDifference: String(alternative.keyDifference || ''), finalAnswer: alternative.finalAnswer, aiChecked: true }
-    : null;
+  method.alternativeMethod = parseAlternativeMethod(result);
   method.visualization = validateVisualization(result.visualization);
   if (!method.visualization && status === 'no_error') {
     method.visualization = await getCheckedVisualization(question, text);

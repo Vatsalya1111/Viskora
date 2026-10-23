@@ -113,8 +113,8 @@ export default function UploadModal() {
           {/* Transcription */}
           <div className="modal-section">
             <label className="modal-label" htmlFor="transcription-input">
-              Transcription
-              <span className="modal-label-hint">Edit any misread characters</span>
+              Optional transcription
+              <span className="modal-label-hint">Not needed when uploading a clear image</span>
             </label>
             <textarea
               id="transcription-input"
@@ -122,7 +122,7 @@ export default function UploadModal() {
               value={transcriptionText}
               onChange={e => setTranscriptionText(e.target.value)}
               rows={4}
-              placeholder="Type each step on its own line (helps line-by-line diagnosis)…"
+              placeholder="Optional: type steps only if you are not uploading an image…"
             />
           </div>
 

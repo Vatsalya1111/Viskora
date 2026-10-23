@@ -3,7 +3,7 @@
  * Structured so the mock AI layer can be replaced with real calls.
  */
 
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import {
   MISCONCEPTION_CATALOGUE,
   PREREQUISITES,
@@ -42,6 +42,23 @@ const initialState = {
   // View
   currentView: 'tutor', // 'tutor' | 'progress'
 };
+
+const STORAGE_KEY = 'viskora.learning-data.v1';
+
+function loadLearningData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved || typeof saved !== 'object') return initialState;
+    return {
+      ...initialState,
+      attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
+      mastery: saved.mastery && typeof saved.mastery === 'object' ? saved.mastery : {},
+      prereqStatus: saved.prereqStatus && typeof saved.prereqStatus === 'object' ? saved.prereqStatus : {},
+    };
+  } catch {
+    return initialState;
+  }
+}
 
 /* ── Reducer ────────────────────────────────────────────── */
 function reducer(state, action) {
@@ -287,7 +304,17 @@ function reducer(state, action) {
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, undefined, loadLearningData);
+
+  useEffect(() => {
+    try {
+      // Uploaded image object URLs expire on reload; retain the analysis and text only.
+      const attempts = state.attempts.map(({ uploadedImageUrl, ...attempt }) => attempt);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ attempts, mastery: state.mastery, prereqStatus: state.prereqStatus }));
+    } catch (error) {
+      console.warn('Could not save Viskora learning data locally.', error);
+    }
+  }, [state.attempts, state.mastery, state.prereqStatus]);
 
   // Derived selectors
   const selectedAttempt = state.attempts.find(a => a.id === state.selectedAttemptId);
