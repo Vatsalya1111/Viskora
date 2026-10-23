@@ -5,7 +5,7 @@ export default function analysisApiPlugin() {
     name: 'viskora-analysis-api',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        if (request.url?.split('?')[0] !== '/api/analyze') return next();
+        if (!['/api/analyze', '/api/chat'].includes(request.url?.split('?')[0])) return next();
         handleAnalysisRequest(request, response);
       });
     },

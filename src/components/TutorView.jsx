@@ -6,6 +6,9 @@ import StepRow from './StepRow.jsx';
 import MisconceptionCard from './MisconceptionCard.jsx';
 import UnderstandingCheck from './UnderstandingCheck.jsx';
 import PrerequisiteGrid from './PrerequisiteGrid.jsx';
+import PrerequisiteExplorer from './PrerequisiteExplorer.jsx';
+import AlternativeMethod from './AlternativeMethod.jsx';
+import MathVisualizer from './MathVisualizer.jsx';
 import UploadModal from './UploadModal.jsx';
 import './TutorView.css';
 
@@ -181,6 +184,10 @@ export default function TutorView() {
         {selectedMethod?.verificationStatus === 'error_found' && (selectedMethod.correctedStep || selectedMethod.correctAnswer) && (
           <div className="method-all-correct"><div><strong>{selectedMethod.correctedStep ? 'Corrected step' : 'Corrected answer'}</strong><p><MathEl latex={selectedMethod.correctedStep || selectedMethod.correctAnswer} /></p></div></div>
         )}
+
+        <PrerequisiteExplorer question={problem} method={selectedMethod} />
+        <AlternativeMethod method={selectedMethod} />
+        <MathVisualizer spec={selectedMethod?.visualization} problem={problem?.displayText} status={selectedMethod?.verificationStatus} />
 
         {/* Understanding check */}
         {selectedMethod?.misconceptionId && !selectedMethod?.diagnosis && (

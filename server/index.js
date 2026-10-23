@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
-import { analyzeSubmission, transcribeImage, verifyAttemptWithAI } from './analysis.js';
+import { analyzeSubmission, transcribeImage, verifyAttemptWithAI, tutorChat } from './analysis.js';
 
 // Load private local settings from the project root without overriding shell env values.
 const envPath = fileURLToPath(new URL('../.env', import.meta.url));
@@ -22,7 +22,8 @@ export async function handleAnalysisRequest(request, response) {
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   if (request.method === 'OPTIONS') { response.writeHead(204).end(); return; }
-  if (request.method !== 'POST' || request.url !== '/api/analyze') { response.writeHead(404).end(); return; }
+  const route = request.url?.split('?')[0];
+  if (request.method !== 'POST' || !['/api/analyze', '/api/chat'].includes(route)) { response.writeHead(404).end(); return; }
   try {
     let raw = '';
     for await (const chunk of request) {
@@ -30,6 +31,11 @@ export async function handleAnalysisRequest(request, response) {
       if (raw.length > 14 * 1024 * 1024) throw Object.assign(new Error('Request exceeds the 10 MB image limit.'), { statusCode: 413 });
     }
     const input = JSON.parse(raw || '{}');
+    if (route === '/api/chat') {
+      const answer = await tutorChat(input);
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ answer }));
+      return;
+    }
     let question = input.question;
     let text = input.text;
     let transcription = null;
@@ -44,12 +50,18 @@ export async function handleAnalysisRequest(request, response) {
     }
     if (input.image && !(question?.trim() && text?.trim())) {
       transcription = await transcribeImage({ image: input.image, mimeType: input.mimeType });
-      if (transcription.unclear || transcription.confidence < 0.65 || transcription.steps.length === 0) {
+      if (transcriptionNeedsConfirmation(transcription)) {
         response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ status: 'needs_confirmation', transcription }));
         return;
       }
       question ||= transcription.question;
       text ||= transcription.steps.join('\n');
+    }
+    if (/^(?:(?:question|q)\.?\s*)?\d{1,4}\s*[).:]?$/i.test(String(question || '').trim())) {
+      const pendingTranscription = transcription || { question, steps: String(text || '').split(/\r?\n/).filter(Boolean), confidence: null, unclear: true };
+      pendingTranscription.unclear = true;
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ status: 'needs_confirmation', transcription: pendingTranscription }));
+      return;
     }
     const attempt = analyzeSubmission({ question: question || '', text: text || '' });
     await verifyAttemptWithAI(attempt, { question: question || '', text: text || '' });
@@ -60,6 +72,13 @@ export async function handleAnalysisRequest(request, response) {
     if (status >= 500) console.error('Analysis request failed:', error.message);
     response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: error.message || 'Analysis failed.' }));
   }
+}
+
+export function transcriptionNeedsConfirmation(transcription) {
+  return !transcription || transcription.unclear === true || Number(transcription.confidence) < 0.65
+    || !Array.isArray(transcription.steps) || transcription.steps.length === 0
+    || !String(transcription.question || '').trim()
+    || /^(?:(?:question|q)\.?\s*)?\d{1,4}\s*[).:]?$/i.test(String(transcription.question || '').trim());
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -163,8 +163,6 @@ export default function ChatPanel() {
       })
     : [];
 
-  const hasApiKey = Boolean(import.meta.env?.VITE_GEMINI_API_KEY);
-
   return (
     <aside className="chat-panel" id="chat-panel">
       {/* Header */}
@@ -177,7 +175,6 @@ export default function ChatPanel() {
           </div>
           <div>
             <span className="chat-header-title">AI Tutor Assistant</span>
-            {hasApiKey && <span className="chat-api-badge">✨ Live Gemini</span>}
           </div>
           {stepNumber && (
             <span className="chat-scope-pill">Step {stepNumber}</span>

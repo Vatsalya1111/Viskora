@@ -169,7 +169,7 @@ export function getDynamicSuggestions({ step, stepIndex, method, attempt, miscon
 }
 
 /**
- * Asynchronously query the Google Gemini API using the provided API key,
+ * Query Gemini through the server so its API key is not exposed in the browser,
  * with automatic fallback to the local response engine.
  */
 export async function queryGeminiTutor({
@@ -181,57 +181,27 @@ export async function queryGeminiTutor({
   misconception,
   chatHistory = [],
 }) {
-  const apiKey = import.meta.env?.VITE_GEMINI_API_KEY;
-
-  if (apiKey) {
-    try {
-      const stepNum = (stepIndex ?? 0) + 1;
-      const isWrong = step?.verdict === 'wrong';
-      const prompt = `You are Viskora, an expert AI math tutor for university students.
-The student is working through this problem:
-- Problem: "${attempt?.problem?.displayText || 'Math problem'}"
-- Concept: "${attempt?.concept || 'Calculus'}"
-- Solution Method: "${method?.label || 'Method'}"
-- Inspected Step (${stepNum}): "${step?.latex || step?.note || ''}"
-- Status: ${isWrong ? `Contains error. Diagnosis: ${step?.note || misconception?.description || 'Error in rule application'}` : 'Correct line.'}
-- Misconception diagnosis: "${misconception?.name || 'N/A'}"
-- Target correct formulation: "${method?.correctAnswer || ''}"
-
-Student asks: "${userMessage}"
-
-Instructions:
-1. Provide a concise, highly scannable response (max 4-5 short lines).
-2. Use bullet points (•) and bold keywords (**keyword**) so the student can scan it in 3 seconds.
-3. Use backticks (\`...\`) for formulas and algebraic terms.
-4. Be Socratic and encouraging: guide their intuition without dumping unnecessary boilerplate.`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 350,
-            },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text && text.trim()) {
-          return text.trim();
-        }
-      }
-    } catch (err) {
-      console.warn('Gemini live call error, falling back to local engine:', err);
-    }
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(50000),
+      body: JSON.stringify({
+        message: userMessage,
+        problem: attempt?.problem?.displayText || '',
+        concept: attempt?.concept || '',
+        method: method?.label || '',
+        step: step?.latex || step?.note || '',
+        feedback: [step?.verdict, step?.note, misconception?.description].filter(Boolean).join(': '),
+        history: chatHistory.map(message => ({ role: message.role, text: message.text })),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && typeof data.answer === 'string' && data.answer.trim()) return data.answer.trim();
+    console.warn('Server tutor unavailable; using the built-in response engine:', data.error || response.status);
+  } catch (err) {
+    console.warn('Server tutor request failed; using the built-in response engine:', err);
   }
-
   // Graceful fallback to built-in structured response engine
   return generateChatbotResponse({
     userMessage,

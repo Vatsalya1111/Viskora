@@ -1,0 +1,20 @@
+.concept-explorer { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-card); overflow: hidden; }
+.concept-explorer-toggle { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:14px 16px; color:var(--text-primary); text-align:left; background:transparent; border:0; cursor:pointer; }
+.concept-explorer-toggle strong,.concept-explorer-toggle small { display:block; }
+.concept-explorer-toggle strong { font-size:14px; }
+.concept-explorer-toggle small { margin-top:3px; color:var(--text-muted); font-size:12px; }
+.concept-explorer-toggle > span:last-child { color:var(--brand-primary); font-size:12px; font-weight:700; }
+.concept-explorer-body { padding:4px 16px 16px; }
+.concept-path { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:8px 0 14px; }
+.concept-node { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:var(--surface-0); color:var(--text-secondary); font-size:12px; cursor:pointer; }
+.concept-node.selected { border-color:var(--brand-primary); background:var(--brand-primary-light); color:var(--brand-primary); }
+.concept-node-number { display:grid; place-items:center; width:19px; height:19px; border-radius:50%; background:var(--surface-3); font-size:10px; font-weight:700; }
+.concept-node.selected .concept-node-number { background:var(--brand-primary); color:white; }
+.concept-path-link { width:15px; height:1px; background:var(--border); }
+.concept-detail { padding:12px 14px; border-radius:var(--radius-sm); background:var(--surface-2); color:var(--text-secondary); font-size:12.5px; }
+.concept-detail h3 { margin:0 0 7px; color:var(--text-primary); font-size:13px; }
+.concept-detail p { margin:5px 0 0; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.concept-detail p > span { color:var(--text-muted); font-weight:600; }
+.concept-formula { color:var(--text-primary); }
+.concept-explorer-empty { margin:0; padding:8px 16px 16px; color:var(--text-muted); font-size:12.5px; }
+@media (max-width:600px) { .concept-path { align-items:stretch; flex-direction:column; } .concept-path-link { width:1px; height:12px; margin-left:18px; } .concept-node { justify-content:flex-start; } }

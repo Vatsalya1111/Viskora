@@ -83,6 +83,12 @@ npm -v
 - **Context-Aware Chatbot with Fallback Engine**: Socratic AI assistant providing hints, rule statements, and examples scoped to individual solution steps.
 - **Adaptive Understanding Check**: 3-question sequence to confirm mastery or distinguish deep misconceptions from one-off slips.
 
-### Analysis service configuration
+## Graph visualization
 
-Typed submissions use the local API. The verifier currently supports the product rule for `x^2 sin(x)` and linear-over-linear quotient derivatives; other expressions are reported as uncertain. Handwritten transcription uses Gemini 3.5 Flash-Lite when `GEMINI_API_KEY` is configured. Paste your key into the `GEMINI_API_KEY=` line in the project-root `.env` file, then restart `npm run dev`. The `.env` file is private and ignored by Git. Each laptop needs its own key; keys are not included when the project is copied or cloned. `npm run api` starts the standalone API for deployments where it runs separately from Vite; route `/api` to that process.
+The analysis page includes an interactive graph below the prerequisite concept explorer and alternative-method sections. It uses the current problem's expression and refreshes when another attempt is selected. Supported explicit functions are plotted with their equation, axes, and a movable point that shows the function value and tangent slope. Definite-integral visualizations shade the selected interval; supported implicit quadratic relations can display both branches.
+
+Expressions that cannot be safely parsed are not replaced with a sample graph. Rational functions preserve recognized denominator exclusions (for example, `x^3/(3*x+5)` is not plotted at `x = -5/3`). If an image transcription is uncertain, confirm or correct it before analysis; the app withholds a graph until the expression is usable. The expression evaluator accepts arithmetic, powers, `x`, parentheses, and `sin`, `cos`, `tan`, `exp`, `log`, and `sqrt` functions.
+
+## Analysis service configuration
+
+Typed submissions use the local analysis API. The app checks supported work locally and can use Gemini for broader line-by-line review and image transcription. To enable Gemini, set `GEMINI_API_KEY` in the project-root `.env` file, then restart the development server. The `.env` file is private and ignored by Git; each computer needs its own key, which is not included when the project is copied or cloned. `npm run dev` starts Vite and its local analysis endpoint. `npm run api` starts the standalone API for deployments where it runs separately from Vite; route `/api` to that process.

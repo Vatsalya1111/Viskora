@@ -46,7 +46,12 @@ export default function UploadModal() {
         setQuestion(result.transcription.question || '');
         setTranscriptionText(result.transcription.steps.join('\n'));
         setFile(null);
-        setFormError(`Please confirm this transcription before analysis (confidence ${Math.round(result.transcription.confidence * 100)}%).`);
+        const onlyQuestionNumber = /^(?:(?:question|q)\.?\s*)?\d{1,4}\s*[).:]?$/i.test(result.transcription.question || '');
+        setFormError(onlyQuestionNumber
+          ? 'This is only the question number. Enter the complete matrix problem in Question before analysing.'
+          : result.transcription.confidence == null
+            ? 'Please check the transcription and enter the complete question before analysing.'
+            : `Please confirm this transcription before analysis (confidence ${Math.round(result.transcription.confidence * 100)}%).`);
         return;
       }
       dispatch({ type: 'CONFIRM_TRANSCRIPTION', payload: { attempt: result.attempt, imageUrl: state.uploadPreview } });
