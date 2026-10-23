@@ -1,0 +1,183 @@
+/* ── MisconceptionCard CSS (Scannable Layout) ─────────────── */
+
+.misconception-card {
+  padding: 18px 20px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--error-icon);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.mc-header {
+  margin-bottom: 14px;
+}
+
+.mc-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.mc-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.mc-name-badge {
+  display: inline-block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+/* ── Scannable Grid ───────────────────────────────────────── */
+.mc-scannable-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mc-scannable-item {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-0);
+}
+
+.mc-scannable-item.error {
+  background: #FFFBFB;
+  border-color: #FECDD3;
+  border-left: 3.5px solid var(--error-icon);
+}
+
+.mc-scannable-item.warning {
+  background: #FFFDF7;
+  border-color: #FDE68A;
+  border-left: 3.5px solid #F59E0B;
+}
+
+.mc-scannable-item.correct {
+  background: #F7FEF9;
+  border-color: #A7F3D0;
+  border-left: 3.5px solid var(--success-icon);
+}
+
+.mc-scannable-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mc-dot.dot-error { background: var(--error-icon); }
+.mc-dot.dot-warning { background: #F59E0B; }
+.mc-dot.dot-correct { background: var(--success-icon); }
+
+.mc-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.mc-scannable-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Math highlight boxes */
+.mc-math-highlight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.mc-math-highlight.error {
+  border-color: #FECDD3;
+  color: var(--error-text);
+}
+
+.mc-math-highlight.correct {
+  border-color: #A7F3D0;
+  color: var(--success-text);
+}
+
+.mc-math-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+/* Pattern tags */
+.mc-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.mc-pattern-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #FFFFFF;
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-sm);
+  color: #B45309;
+}
+
+/* ── Slip Box ─────────────────────────────────────────────── */
+.misconception-card.is-slip {
+  border-left-color: var(--success-icon);
+  background: #F0FDF4;
+}
+
+.mc-slip-box {
+  padding: 4px 0;
+}
+
+.mc-slip-headline {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--success-text);
+  margin-bottom: 6px;
+}
+
+.mc-slip-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

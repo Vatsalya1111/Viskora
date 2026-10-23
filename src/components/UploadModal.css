@@ -1,0 +1,83 @@
+/* UploadModal CSS */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 150ms var(--ease) both;
+}
+
+.modal-box {
+  background: var(--surface-1);
+  border-radius: var(--radius-xl);
+  width: min(520px, 94vw);
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 200ms var(--ease) both;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.modal-close {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--dur-fast) var(--ease);
+}
+.modal-close:hover { background: var(--surface-2); color: var(--text-primary); }
+
+.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.upload-preview-img {
+  max-height: 160px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  margin: auto;
+}
+.upload-drop-icon { font-size: 28px; margin-bottom: 8px; }
+.upload-drop-text { font-size: 13px; color: var(--text-secondary); }
+.upload-drop-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.link { color: var(--text-link); font-weight: 600; }
+
+.modal-section { display: flex; flex-direction: column; gap: 6px; }
+.modal-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.modal-label-hint { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.modal-textarea { resize: vertical; min-height: 80px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+.modal-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary-light);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.modal-info-icon { flex-shrink: 0; }
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}

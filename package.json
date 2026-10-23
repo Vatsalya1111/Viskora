@@ -1,0 +1,31 @@
+{
+  "name": "viskora",
+  "version": "1.0.0",
+  "description": "Adaptive AI Tutor that Diagnoses Misconceptions in Engineering Mathematics",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vatsalya1111/Viskora.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Vatsalya1111/Viskora/issues"
+  },
+  "homepage": "https://github.com/Vatsalya1111/Viskora#readme",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "katex": "^0.19.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4"
+  }
+}

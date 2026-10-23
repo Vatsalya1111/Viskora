@@ -1,0 +1,235 @@
+/* ── Prerequisite Vertical Checklist CSS ──────────────────── */
+
+.prereq-section {
+  margin-top: 16px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.prereq-section:hover {
+  border-color: var(--border-strong);
+}
+
+/* ── Collapsible Header Button ────────────────────────────── */
+.prereq-header-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.prereq-header-toggle:hover {
+  background: var(--surface-2);
+}
+
+.prereq-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prereq-header-icon-wrap {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.prereq-header-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.prereq-header-subtitle {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.prereq-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prereq-summary-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+}
+
+.prereq-summary-pill.pill-warn {
+  background: var(--conf-med-bg);
+  color: var(--conf-med-text);
+  border: 1px solid var(--warn-border);
+}
+
+.prereq-summary-pill.pill-good {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.prereq-toggle-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.prereq-chevron {
+  color: var(--text-muted);
+  transition: transform var(--dur-med) var(--ease);
+}
+
+.prereq-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* ── Checklist Body ───────────────────────────────────────── */
+.prereq-content {
+  padding: 0 16px 16px 16px;
+  border-top: 1px solid var(--border);
+  background: #FCFCFD;
+  animation: fadeInDown 200ms var(--ease);
+}
+
+.prereq-vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ── Individual Checklist Item ────────────────────────────── */
+.prereq-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.prereq-checklist-item:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.prereq-checklist-item.item-good {
+  border-left: 4px solid var(--success-icon);
+}
+
+.prereq-checklist-item.item-review {
+  border-left: 4px solid #F59E0B;
+  background: #FFFDF8;
+}
+
+/* Checkbox Button */
+.prereq-checkbox-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prereq-check-svg {
+  display: block;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.prereq-checkbox-btn:hover .prereq-check-svg {
+  transform: scale(1.1);
+}
+
+/* Info block */
+.prereq-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.prereq-item-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.prereq-item-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Badges */
+.prereq-item-status-col {
+  flex-shrink: 0;
+}
+
+.prereq-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.prereq-badge.badge-good {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.prereq-badge.badge-review {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-border);
+}
+
+.prereq-footer-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 10px;
+  padding-left: 4px;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

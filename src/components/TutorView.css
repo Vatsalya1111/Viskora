@@ -1,0 +1,271 @@
+/* ── Tutor View CSS ──────────────────────────────────────── */
+
+.tutor-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+  overflow-y: auto;
+  height: 100vh;
+  background: var(--surface-0);
+}
+
+/* ── Section ─────────────────────────────────────────────── */
+.tutor-section {
+  padding: 18px 20px;
+}
+
+.section-label-sm {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Problem display ─────────────────────────────────────── */
+.problem-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  padding: 4px 0;
+}
+.problem-q {
+  font-weight: 800;
+  color: var(--text-secondary);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Working layout ──────────────────────────────────────── */
+.working-layout {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.working-image-col { display: flex; flex-direction: column; gap: 8px; }
+
+.working-image-wrapper {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #F8F9FC;
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.working-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.working-image-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Working Paper Notebook Preview ──────────────────────── */
+.working-paper-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    to bottom,
+    #FFFFFF,
+    #FFFFFF 20px,
+    #F1F5F9 21px
+  );
+  padding: 10px 12px 10px 22px;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+.paper-margin-red {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 16px;
+  width: 1.5px;
+  background: #FCA5A5;
+}
+
+.paper-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.paper-q-prefix {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4B5563;
+}
+
+.paper-q-title {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.paper-subhead {
+  font-size: 8.5px;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.paper-steps-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.paper-step-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 9.5px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.paper-step-row:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.paper-step-row.paper-selected {
+  background: #EEF2FF;
+  border: 1px solid #C7D2FE;
+}
+
+.paper-step-num {
+  font-size: 8.5px;
+  color: #9CA3AF;
+  width: 12px;
+}
+
+.paper-step-math {
+  flex: 1;
+  color: #374151;
+}
+
+.paper-step-row.paper-wrong .paper-step-math {
+  color: #BE123C;
+  font-weight: 600;
+}
+
+.paper-step-row.paper-correct .paper-step-math {
+  color: #15803D;
+}
+
+.paper-step-badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.paper-icon-ok { color: #16A34A; }
+.paper-icon-err { color: #E11D48; }
+.paper-icon-alt { color: #7C3AED; }
+
+.working-image-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.working-image-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.check-transcription-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-link);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color var(--dur-fast) var(--ease);
+}
+.check-transcription-btn:hover { color: var(--brand-primary-hover); text-decoration: underline; }
+
+.working-steps-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 2px;
+}
+
+/* ── Tab status badges ───────────────────────────────────── */
+.tab-status-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--success-icon);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+.tab-status-err {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--error-icon);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* ── All-correct state ───────────────────────────────────── */
+.method-all-correct {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--success-bg);
+  border: 1.5px solid var(--success-border);
+  margin-bottom: 14px;
+}
+.method-correct-icon { font-size: 22px; }
+.method-all-correct strong { font-size: 14px; color: var(--success-text); }
+.method-all-correct p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ── Empty state ─────────────────────────────────────────── */
+.tutor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.tutor-empty-inner {
+  text-align: center;
+  max-width: 280px;
+  animation: fadeInUp 400ms var(--ease) both;
+}
+.tutor-empty-icon { font-size: 40px; margin-bottom: 12px; }
+.tutor-empty-inner h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+.tutor-empty-inner p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }

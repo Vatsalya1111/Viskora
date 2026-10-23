@@ -1,0 +1,7 @@
+/* App-level layout overrides */
+/* (Main layout uses app-shell in index.css) */
+
+/* Progress page spans full center+right area */
+.progress-page {
+  grid-column: 2 / 4;
+}

@@ -1,0 +1,78 @@
+/* ── StepRow CSS (Scannable) ─────────────────────────────── */
+
+.step-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  font-family: inherit;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--surface-1);
+  transition: all var(--dur-fast) var(--ease);
+  cursor: pointer;
+  margin-bottom: 7px;
+}
+
+.step-row:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.step-left-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.step-right-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.step-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.step-status-pill.pill-ok {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.step-status-pill.pill-err {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.step-status-pill.pill-alt {
+  background: #FAF5FF;
+  color: #7C3AED;
+  border: 1px solid #DDD6FE;
+}
+
+.step-active-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-primary);
+  background: var(--brand-primary-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
