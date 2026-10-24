@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accountRequest } from '../data/accountApi.js';
 import { Math as MathFormula } from './MathRenderer.jsx';
 import './TeacherDashboard.css';
@@ -15,14 +15,23 @@ export default function TeacherDashboard({ session, onSignOut }) {
   const [className, setClassName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const refreshing = useRef(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     setLoading(true);
     try { const result = await accountRequest('/api/reports/classes'); setClasses(result.classes || []); setError(''); }
     catch (issue) { setError(issue.message); }
-    finally { setLoading(false); }
-  }
-  useEffect(() => { refresh(); }, []);
+    finally { setLoading(false); refreshing.current = false; }
+  }, []);
+  useEffect(() => {
+    refresh();
+    const timer = window.setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus); };
+  }, [refresh]);
 
   async function createClass(event) {
     event.preventDefault(); setError('');

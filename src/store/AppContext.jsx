@@ -317,32 +317,77 @@ const AppContext = createContext(null);
 export function AppProvider({ children, userId }) {
   const [state, dispatch] = useReducer(reducer, userId, loadLearningData);
   const reportReady = React.useRef(false);
+  const latestState = React.useRef(state);
+  const syncQueue = React.useRef(Promise.resolve());
+  const syncRevision = React.useRef(0);
+  const [syncStatus, setSyncStatus] = React.useState('loading');
+  const [syncError, setSyncError] = React.useState('');
+  latestState.current = state;
+
+  const syncReport = React.useCallback((snapshot = latestState.current) => {
+    const revision = ++syncRevision.current;
+    const attempts = snapshot.attempts.map(({ uploadedImageUrl, ...attempt }) => attempt);
+    const report = { attempts, mastery: snapshot.mastery, prereqStatus: snapshot.prereqStatus };
+    localStorage.setItem(`${STORAGE_KEY}.${userId}`, JSON.stringify(report));
+    setSyncStatus('syncing');
+    setSyncError('');
+    const queued = syncQueue.current.catch(() => {}).then(() =>
+      accountRequest('/api/reports/self', { method: 'PUT', body: report })
+    );
+    syncQueue.current = queued.then(() => {
+      if (revision === syncRevision.current) setSyncStatus('synced');
+      return true;
+    }, error => {
+      console.error('Could not sync your learning report.', error);
+      if (revision === syncRevision.current) {
+        setSyncError(error.message || 'Could not sync your learning report.');
+        setSyncStatus('error');
+      }
+      return false;
+    });
+    return syncQueue.current;
+  }, [userId]);
 
   useEffect(() => {
     let active = true;
     reportReady.current = false;
     accountRequest('/api/reports/self').then(report => {
       if (!active) return;
-      dispatch({ type: 'HYDRATE_REPORT', payload: report });
+      const local = latestState.current;
+      const remoteAttempts = Array.isArray(report.attempts) ? report.attempts : [];
+      const remoteIds = new Set(remoteAttempts.map(attempt => attempt.id).filter(Boolean));
+      const localOnly = local.attempts.filter(attempt => !attempt.id || !remoteIds.has(attempt.id));
+      const merged = {
+        ...report,
+        attempts: [...remoteAttempts, ...localOnly].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)),
+        mastery: localOnly.length ? local.mastery : (report.mastery || {}),
+        prereqStatus: localOnly.length ? local.prereqStatus : (report.prereqStatus || {}),
+      };
+      dispatch({ type: 'HYDRATE_REPORT', payload: merged });
       reportReady.current = true;
+      setSyncStatus('synced');
     }).catch(error => {
+      if (!active) return;
       console.error('Could not load your saved learning report.', error);
+      // A failed initial read must not permanently disable writes. Keep the
+      // device's cached report and try to publish it to the teacher's report.
+      reportReady.current = true;
+      setSyncError(error.message || 'Could not load your saved learning report.');
+      syncReport(latestState.current);
     });
     return () => { active = false; };
-  }, [userId]);
+  }, [userId, syncReport]);
 
   useEffect(() => {
     if (!reportReady.current) return;
     try {
-      // Uploaded image object URLs expire on reload; retain the analysis and text only.
-      const attempts = state.attempts.map(({ uploadedImageUrl, ...attempt }) => attempt);
-      const report = { attempts, mastery: state.mastery, prereqStatus: state.prereqStatus };
-      localStorage.setItem(`${STORAGE_KEY}.${userId}`, JSON.stringify(report));
-      accountRequest('/api/reports/self', { method: 'PUT', body: report }).catch(error => console.error('Could not sync your learning report.', error));
+      syncReport(state);
     } catch (error) {
       console.warn('Could not save Viskora learning data locally.', error);
+      setSyncError(error.message || 'Could not save your learning report locally.');
+      setSyncStatus('error');
     }
-  }, [state.attempts, state.mastery, state.prereqStatus, userId]);
+  }, [state.attempts, state.mastery, state.prereqStatus, syncReport]);
 
   // Derived selectors
   const selectedAttempt = state.attempts.find(a => a.id === state.selectedAttemptId);
@@ -419,6 +464,9 @@ export function AppProvider({ children, userId }) {
     prerequisites,
     chatMessages,
     attemptsByTopic,
+    syncStatus,
+    syncError,
+    retryReportSync: () => syncReport(),
     buildQuestions,
     // Confidence from live check state, fallback to method
     liveConfidence: state.checkState.active ? state.checkState.confidence : selectedMethod?.confidence,

@@ -36,7 +36,7 @@ function shareLabel(count, total) {
 }
 
 export default function ProgressPage() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, syncStatus, syncError, retryReportSync } = useApp();
   const attempts = state.attempts || [];
   const topicStats = Object.values(attempts.reduce((groups, attempt) => {
     const topic = attempt.topic || 'Other';
@@ -91,7 +91,10 @@ export default function ProgressPage() {
               <h2 className="pp-card-title">Your learning at a glance</h2>
               <p className="pp-analytics-caption">Analytics update whenever you add working.</p>
             </div>
-            <span className="pp-local-badge"><span /> Saved on this device</span>
+            <div className="pp-sync-state">
+              <span className={`pp-local-badge sync-${syncStatus}`} title={syncError || undefined}><span />{syncStatus === 'synced' ? 'Synced to your teacher' : syncStatus === 'syncing' ? 'Syncing report…' : syncStatus === 'loading' ? 'Connecting…' : 'Saved locally · sync issue'}</span>
+              {syncStatus === 'error' && <button className="pp-sync-retry" onClick={retryReportSync}>Retry sync</button>}
+            </div>
           </div>
           <div className="pp-stat-grid">
             <div className="pp-stat"><span className="pp-stat-label">Submissions</span><strong>{attempts.length}</strong><span>all recorded work</span></div>
