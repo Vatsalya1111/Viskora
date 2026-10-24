@@ -8,7 +8,11 @@ import { DatabaseSync } from 'node:sqlite';
 const defaultPath = fileURLToPath(new URL('../data/viskora.sqlite', import.meta.url));
 const dbPath = process.env.VISKORA_DB_PATH || defaultPath;
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const remoteDatabase = Boolean(process.env.DATABASE_URL);
+const databaseUrl = process.env.DATABASE_URL
+  || process.env.SUPABASE_DB_URL
+  || process.env.POSTGRES_URL
+  || process.env.POSTGRES_PRISMA_URL;
+const remoteDatabase = Boolean(databaseUrl);
 let db = null;
 let postgresStorePromise = null;
 if (!remoteDatabase && !process.env.VERCEL) {
@@ -42,8 +46,8 @@ if (!remoteDatabase && !process.env.VERCEL) {
 }
 
 async function postgresStore() {
-  if (!process.env.DATABASE_URL) {
-    throw Object.assign(new Error('Set DATABASE_URL to a hosted Postgres database before using Viskora on Vercel.'), { statusCode: 503 });
+  if (!databaseUrl) {
+    throw Object.assign(new Error('Set DATABASE_URL to your Supabase Postgres transaction-pooler connection string before using Viskora on Vercel.'), { statusCode: 503 });
   }
   postgresStorePromise ||= import('./postgresAccountStore.js');
   return postgresStorePromise;

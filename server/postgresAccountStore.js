@@ -1,6 +1,14 @@
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
-const sql = neon(process.env.DATABASE_URL);
+const connectionString = process.env.DATABASE_URL
+  || process.env.SUPABASE_DB_URL
+  || process.env.POSTGRES_URL
+  || process.env.POSTGRES_PRISMA_URL;
+if (!connectionString) throw new Error('Set a Supabase Postgres connection string in DATABASE_URL.');
+
+// Vercel runs this module in serverless functions. Supabase's transaction
+// pooler requires prepared statements off and a small per-instance pool.
+const sql = postgres(connectionString, { max: 1, prepare: false, ssl: 'require' });
 let schemaPromise;
 
 async function ensureSchema() {
@@ -105,12 +113,10 @@ export async function ownReport(user) {
 
 export async function classReports(user) {
   await ensureSchema();
-  const [classes, students] = await Promise.all([
-    classesFor(user.id),
-    sql`SELECT u.id,u.name,u.email,c.id AS "classId",r.payload,r.updated_at AS "updatedAt"
-      FROM classes c JOIN enrollments e ON e.class_id=c.id JOIN users u ON u.id=e.student_id
-      LEFT JOIN reports r ON r.student_id=u.id WHERE c.teacher_id=${user.id} ORDER BY c.name,u.name`,
-  ]);
+  const classes = await classesFor(user.id);
+  const students = await sql`SELECT u.id,u.name,u.email,c.id AS "classId",r.payload,r.updated_at AS "updatedAt"
+    FROM classes c JOIN enrollments e ON e.class_id=c.id JOIN users u ON u.id=e.student_id
+    LEFT JOIN reports r ON r.student_id=u.id WHERE c.teacher_id=${user.id} ORDER BY c.name,u.name`;
   const result = classes.map(item => ({ ...item, students: [] }));
   for (const row of students) {
     const report = row.payload || { attempts: [], mastery: {}, prereqStatus: {} };
