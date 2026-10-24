@@ -10,6 +10,7 @@ import {
   CHATBOT_RESPONSES,
 } from '../data/catalogue.js';
 import { generateChatbotResponse } from '../data/chatbot.js';
+import { accountRequest } from '../data/accountApi.js';
 
 /* ── Initial State ──────────────────────────────────────── */
 const initialState = {
@@ -45,9 +46,9 @@ const initialState = {
 
 const STORAGE_KEY = 'viskora.learning-data.v1';
 
-function loadLearningData() {
+function loadLearningData(userId) {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const saved = JSON.parse(localStorage.getItem(`${STORAGE_KEY}.${userId}`) || 'null');
     if (!saved || typeof saved !== 'object') return initialState;
     return {
       ...initialState,
@@ -76,6 +77,16 @@ function reducer(state, action) {
         chatMessages: {},
       };
     }
+
+    case 'HYDRATE_REPORT':
+      return {
+        ...state,
+        attempts: action.payload.attempts || [],
+        selectedAttemptId: action.payload.attempts?.[0]?.id ?? null,
+        selectedMethodId: action.payload.attempts?.[0]?.problem?.methods?.[0]?.id ?? null,
+        mastery: action.payload.mastery || {},
+        prereqStatus: action.payload.prereqStatus || {},
+      };
 
     case 'SELECT_METHOD': {
       return { ...state, selectedMethodId: action.payload, selectedStepId: null, checkState: initialState.checkState };
@@ -303,18 +314,36 @@ function reducer(state, action) {
 /* ── Context ────────────────────────────────────────────── */
 const AppContext = createContext(null);
 
-export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadLearningData);
+export function AppProvider({ children, userId }) {
+  const [state, dispatch] = useReducer(reducer, userId, loadLearningData);
+  const reportReady = React.useRef(false);
 
   useEffect(() => {
+    let active = true;
+    reportReady.current = false;
+    accountRequest('/api/reports/self').then(report => {
+      if (!active) return;
+      dispatch({ type: 'HYDRATE_REPORT', payload: report });
+      reportReady.current = true;
+    }).catch(error => {
+      console.error('Could not load your saved learning report.', error);
+      reportReady.current = true;
+    });
+    return () => { active = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!reportReady.current) return;
     try {
       // Uploaded image object URLs expire on reload; retain the analysis and text only.
       const attempts = state.attempts.map(({ uploadedImageUrl, ...attempt }) => attempt);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ attempts, mastery: state.mastery, prereqStatus: state.prereqStatus }));
+      const report = { attempts, mastery: state.mastery, prereqStatus: state.prereqStatus };
+      localStorage.setItem(`${STORAGE_KEY}.${userId}`, JSON.stringify(report));
+      accountRequest('/api/reports/self', { method: 'PUT', body: report }).catch(error => console.error('Could not sync your learning report.', error));
     } catch (error) {
       console.warn('Could not save Viskora learning data locally.', error);
     }
-  }, [state.attempts, state.mastery, state.prereqStatus]);
+  }, [state.attempts, state.mastery, state.prereqStatus, userId]);
 
   // Derived selectors
   const selectedAttempt = state.attempts.find(a => a.id === state.selectedAttemptId);

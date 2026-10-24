@@ -1,6 +1,7 @@
 /* ── Sidebar Component ──────────────────────────────────── */
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext.jsx';
+import { accountRequest } from '../data/accountApi.js';
 import './Sidebar.css';
 
 const TopicIcon = () => (
@@ -40,9 +41,23 @@ const ChevronRight = () => (
   </svg>
 );
 
-export default function Sidebar() {
+export default function Sidebar({ session, onSignOut, onSessionChange }) {
   const { state, dispatch, attemptsByTopic } = useApp();
   const [closedTopics, setClosedTopics] = useState([]);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinMessage, setJoinMessage] = useState('');
+  const [joining, setJoining] = useState(false);
+
+  async function joinClass(event) {
+    event.preventDefault(); setJoinMessage(''); setJoining(true);
+    try {
+      await accountRequest('/api/classes/join', { method: 'POST', body: { code: joinCode } });
+      const profile = await accountRequest('/api/me');
+      onSessionChange(current => ({ ...current, ...profile }));
+      setJoinCode(''); setJoinMessage('Class joined successfully.');
+    } catch (error) { setJoinMessage(error.message); }
+    finally { setJoining(false); }
+  }
 
   function toggleTopic(topic) {
     setClosedTopics(prev =>
@@ -122,6 +137,14 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+
+      <section className="sidebar-account">
+        <div className="sidebar-account-name">{session?.user?.name || 'Student'}<small>Student profile</small></div>
+        {session?.classes?.length > 0 && <div className="sidebar-enrolled">{session.classes.map(item => <span key={item.id}>{item.name}<small>Teacher: {item.teacherName}</small></span>)}</div>}
+        <form className="sidebar-join-form" onSubmit={joinClass}><input aria-label="Class join code" placeholder="Enter class code" maxLength="6" value={joinCode} onChange={event => setJoinCode(event.target.value.toUpperCase())} /><button disabled={joining || joinCode.length < 4}>{joining ? '…' : 'Join'}</button></form>
+        {joinMessage && <small className="sidebar-join-message" role="status">{joinMessage}</small>}
+        <button className="sidebar-signout" onClick={onSignOut}>Sign out</button>
+      </section>
 
       {/* Progress link (pinned bottom) */}
       <button

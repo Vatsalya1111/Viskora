@@ -14,7 +14,7 @@ Follow these steps to set up and run Viskora locally on your machine.
 
 Ensure you have the following installed on your system:
 
-- [Node.js](https://nodejs.org/) (`v18.0.0` or higher recommended)
+- [Node.js](https://nodejs.org/) (`v22.13.0` or newer; the local SQLite store uses the built-in `node:sqlite` module)
 - `npm` (bundled with Node.js) or `yarn` / `pnpm`
 
 Check your Node and npm versions:
@@ -92,3 +92,9 @@ Expressions that cannot be safely parsed are not replaced with a sample graph. R
 ## Analysis service configuration
 
 Typed submissions use the local analysis API. The app checks supported work locally and can use Gemini for broader line-by-line review and image transcription. To enable Gemini, set `GEMINI_API_KEY` in the project-root `.env` file, then restart the development server. The `.env` file is private and ignored by Git; each computer needs its own key, which is not included when the project is copied or cloned. `npm run dev` starts Vite and its local analysis endpoint. `npm run api` starts the standalone API for deployments where it runs separately from Vite; route `/api` to that process.
+
+## Teacher and student profiles
+
+Viskora now supports teacher and student profiles. Create an account from the sign-in screen, then teachers can create classes and share the generated six-character join code. Students enter that code in their sidebar to connect their profile to the teacher. Students can see their own tutor and progress reports; teachers can view class-level summaries and each joined student's submissions, analysis notes, and mastery overview.
+
+Accounts, sessions, class memberships, and reports are stored in a local SQLite database at `data/viskora.sqlite` (ignored by Git). Set the `VISKORA_DB_PATH` process environment variable to use a different database path. The API hashes passwords and checks the signed-in user's role and class ownership before returning or updating report data. For a multi-instance deployment, place the SQLite file on persistent storage and run a single API instance; use HTTPS and back up the database as you would other account data.

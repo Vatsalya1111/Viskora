@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 import { analyzeSubmission, transcribeImage, verifyAttemptWithAI, tutorChat } from './analysis.js';
+import { register, login, authenticate, logout, currentProfile, createClass, joinClass, saveReport, ownReport, classReports } from './accountStore.js';
 
 // Load private local settings from the project root without overriding shell env values.
 const envPath = fileURLToPath(new URL('../.env', import.meta.url));
@@ -19,11 +20,12 @@ try {
 
 export async function handleAnalysisRequest(request, response) {
   response.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   if (request.method === 'OPTIONS') { response.writeHead(204).end(); return; }
   const route = request.url?.split('?')[0];
-  if (request.method !== 'POST' || !['/api/analyze', '/api/chat'].includes(route)) { response.writeHead(404).end(); return; }
+  const accountRoutes = ['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/me', '/api/classes', '/api/classes/join', '/api/reports/self', '/api/reports/classes'];
+  if (!accountRoutes.includes(route) && (request.method !== 'POST' || !['/api/analyze', '/api/chat'].includes(route))) { response.writeHead(404).end(); return; }
   try {
     let raw = '';
     for await (const chunk of request) {
@@ -31,6 +33,43 @@ export async function handleAnalysisRequest(request, response) {
       if (raw.length > 14 * 1024 * 1024) throw Object.assign(new Error('Request exceeds the 10 MB image limit.'), { statusCode: 413 });
     }
     const input = JSON.parse(raw || '{}');
+    if (route === '/api/auth/register' || route === '/api/auth/login') {
+      const result = route.endsWith('register') ? register(input) : login(input);
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
+      return;
+    }
+    const token = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const user = authenticate(token);
+    if (route === '/api/auth/logout' && request.method === 'POST') {
+      logout(token);
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ loggedOut: true }));
+      return;
+    } else if (route === '/api/me' && request.method === 'GET') {
+      if (!user) throw Object.assign(new Error('Sign in to continue.'), { statusCode: 401 });
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(currentProfile(user)));
+      return;
+    } else if (route === '/api/classes' && request.method === 'POST') {
+      const item = createClass(user, input);
+      response.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify(item));
+      return;
+    } else if (route === '/api/classes/join' && request.method === 'POST') {
+      const item = joinClass(user, input);
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(item));
+      return;
+    } else if (route === '/api/reports/self' && request.method === 'GET') {
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(ownReport(user)));
+      return;
+    } else if (route === '/api/reports/self' && request.method === 'PUT') {
+      const result = saveReport(user, input);
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
+      return;
+    } else if (route === '/api/reports/classes' && request.method === 'GET') {
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(classReports(user)));
+      return;
+    } else if (accountRoutes.includes(route)) {
+      response.writeHead(405).end();
+      return;
+    }
     if (route === '/api/chat') {
       const answer = await tutorChat(input);
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ answer }));
