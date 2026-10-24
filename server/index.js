@@ -12,6 +12,11 @@ export async function handleAnalysisRequest(request, response) {
   const route = request.url?.split('?')[0];
   const accountRoutes = ['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/me', '/api/classes', '/api/classes/join', '/api/reports/self', '/api/reports/classes'];
   if (!accountRoutes.includes(route) && (request.method !== 'POST' || !['/api/analyze', '/api/chat'].includes(route))) { response.writeHead(404).end(); return; }
+  const token = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if ((route === '/api/reports/self' || route === '/api/reports/classes') && !token) {
+    response.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Sign in to continue.' }));
+    return;
+  }
   try {
     let input;
     if (request.body !== undefined) {
@@ -29,7 +34,6 @@ export async function handleAnalysisRequest(request, response) {
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
       return;
     }
-    const token = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const user = await authenticate(token);
     if (route === '/api/auth/logout' && request.method === 'POST') {
       await logout(token);
