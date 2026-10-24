@@ -41,7 +41,7 @@ const ChevronRight = () => (
   </svg>
 );
 
-export default function Sidebar({ session, onSignOut, onSessionChange }) {
+export default function Sidebar({ session, onSignOut, onSessionChange, mobileOpen = false, onMobileClose }) {
   const { state, dispatch, attemptsByTopic } = useApp();
   const [closedTopics, setClosedTopics] = useState([]);
   const [joinCode, setJoinCode] = useState('');
@@ -70,7 +70,7 @@ export default function Sidebar({ session, onSignOut, onSessionChange }) {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       {/* Wordmark */}
       <div className="sidebar-brand">
         <div className="sidebar-logo">
@@ -92,7 +92,7 @@ export default function Sidebar({ session, onSignOut, onSessionChange }) {
       <button
         className="sidebar-upload-btn"
         id="btn-upload-working"
-        onClick={() => dispatch({ type: 'OPEN_UPLOAD_MODAL' })}
+        onClick={() => { dispatch({ type: 'OPEN_UPLOAD_MODAL' }); onMobileClose?.(); }}
       >
         <UploadIcon />
         Upload working
@@ -120,7 +120,7 @@ export default function Sidebar({ session, onSignOut, onSessionChange }) {
                   <li key={attempt.id}>
                     <button
                       className={`sidebar-attempt-btn ${state.selectedAttemptId === attempt.id ? 'active' : ''}`}
-                      onClick={() => dispatch({ type: 'SELECT_ATTEMPT', payload: attempt.id })}
+                      onClick={() => { dispatch({ type: 'SELECT_ATTEMPT', payload: attempt.id }); onMobileClose?.(); }}
                       id={`sidebar-attempt-${attempt.id}`}
                     >
                       <TopicIcon />
@@ -150,7 +150,7 @@ export default function Sidebar({ session, onSignOut, onSessionChange }) {
       <button
         className="sidebar-progress-link"
         id="btn-view-progress"
-        onClick={() => dispatch({ type: 'SET_VIEW', payload: 'progress' })}
+        onClick={() => { dispatch({ type: 'SET_VIEW', payload: 'progress' }); onMobileClose?.(); }}
       >
         <ProgressIcon />
         <span>View progress &amp; stats</span>

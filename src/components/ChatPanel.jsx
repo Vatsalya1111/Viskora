@@ -83,7 +83,7 @@ function formatInlineText(str) {
   });
 }
 
-export default function ChatPanel() {
+export default function ChatPanel({ mobileActive = false, onMobileMinimize }) {
   const {
     state,
     dispatch,
@@ -101,6 +101,10 @@ export default function ChatPanel() {
 
   const stepId = state.selectedStepId;
   const messages = chatMessages;
+
+  useEffect(() => {
+    if (mobileActive) setMinimized(false);
+  }, [mobileActive]);
 
   const stepIndex = selectedMethod?.steps.findIndex(s => s.id === stepId) ?? -1;
   const stepNumber = stepIndex >= 0 ? stepIndex + 1 : null;
@@ -182,7 +186,11 @@ export default function ChatPanel() {
         </div>
         <button
           className="chat-minimize-btn"
-          onClick={() => setMinimized(m => !m)}
+          onClick={() => setMinimized(m => {
+            const next = !m;
+            if (next) onMobileMinimize?.();
+            return next;
+          })}
           aria-label={minimized ? 'Expand chat' : 'Minimize chat'}
         >
           {minimized ? '+' : <MinimizeIcon />}
