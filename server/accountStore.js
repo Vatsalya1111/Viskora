@@ -1,3 +1,4 @@
+import './loadEnv.js';
 import { randomBytes, scryptSync, timingSafeEqual, randomInt } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -6,9 +7,14 @@ import { DatabaseSync } from 'node:sqlite';
 
 const defaultPath = fileURLToPath(new URL('../data/viskora.sqlite', import.meta.url));
 const dbPath = process.env.VISKORA_DB_PATH || defaultPath;
-mkdirSync(dirname(dbPath), { recursive: true });
-const db = new DatabaseSync(dbPath);
-db.exec(`
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const remoteDatabase = Boolean(process.env.DATABASE_URL);
+let db = null;
+let postgresStorePromise = null;
+if (!remoteDatabase && !process.env.VERCEL) {
+  mkdirSync(dirname(dbPath), { recursive: true });
+  db = new DatabaseSync(dbPath);
+  db.exec(`
   PRAGMA foreign_keys = ON;
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
@@ -32,18 +38,27 @@ db.exec(`
     student_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     payload TEXT NOT NULL, updated_at TEXT NOT NULL
   );
-`);
+  `);
+}
+
+async function postgresStore() {
+  if (!process.env.DATABASE_URL) {
+    throw Object.assign(new Error('Set DATABASE_URL to a hosted Postgres database before using Viskora on Vercel.'), { statusCode: 503 });
+  }
+  postgresStorePromise ||= import('./postgresAccountStore.js');
+  return postgresStorePromise;
+}
 
 const publicUser = ({ id, name, email, role }) => ({ id, name, email, role });
-const getUserById = db.prepare('SELECT id,name,email,role FROM users WHERE id = ?');
-const getClassListForUser = db.prepare(`
+const getUserById = db?.prepare('SELECT id,name,email,role FROM users WHERE id = ?');
+const getClassListForUser = db?.prepare(`
   SELECT c.id,c.name,c.join_code AS joinCode,c.teacher_id AS teacherId,u.name AS teacherName
   FROM classes c JOIN users u ON u.id=c.teacher_id
   WHERE c.teacher_id=? OR c.id IN (SELECT class_id FROM enrollments WHERE student_id=?)
   ORDER BY c.created_at DESC
 `);
 
-export function register({ name, email, password, role }) {
+export async function register({ name, email, password, role }) {
   name = String(name || '').trim().slice(0, 80);
   email = String(email || '').trim().toLowerCase();
   if (name.length < 2) throw Object.assign(new Error('Enter your name (at least 2 characters).'), { statusCode: 400 });
@@ -53,16 +68,25 @@ export function register({ name, email, password, role }) {
   const id = randomBytes(16).toString('hex');
   const salt = randomBytes(16).toString('hex');
   const hash = scryptSync(password, salt, 64).toString('hex');
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).register({ id, name, email, role, passwordHash: hash, passwordSalt: salt });
   try {
     db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?,?)').run(id, name, email, role, hash, salt, new Date().toISOString());
   } catch (error) {
-    if (error.code === 'ERR_SQLITE_CONSTRAINT_UNIQUE') throw Object.assign(new Error('An account with this email already exists.'), { statusCode: 409 });
+    if (error.errcode === 2067) throw Object.assign(new Error('An account with this email already exists.'), { statusCode: 409 });
     throw error;
   }
   return startSession(id);
 }
 
-export function login({ email, password }) {
+export async function login({ email, password }) {
+  if (remoteDatabase || process.env.VERCEL) {
+    const store = await postgresStore();
+    const user = await store.findUserForLogin(String(email || '').trim().toLowerCase());
+    if (!user || typeof password !== 'string') throw Object.assign(new Error('Email or password is incorrect.'), { statusCode: 401 });
+    const actual = scryptSync(password, user.passwordSalt, 64);
+    if (!timingSafeEqual(actual, Buffer.from(user.passwordHash, 'hex'))) throw Object.assign(new Error('Email or password is incorrect.'), { statusCode: 401 });
+    return store.createSession(user.id, randomBytes(32).toString('hex'));
+  }
   const user = db.prepare('SELECT * FROM users WHERE email=?').get(String(email || '').trim().toLowerCase());
   if (!user || typeof password !== 'string') throw Object.assign(new Error('Email or password is incorrect.'), { statusCode: 401 });
   const actual = scryptSync(password, user.password_salt, 64);
@@ -76,56 +100,83 @@ function startSession(userId) {
   return { token, user: publicUser(getUserById.get(userId)), classes: getClassListForUser.all(userId, userId) };
 }
 
-export function authenticate(token) {
+export async function authenticate(token) {
   if (!token) return null;
-  const row = db.prepare(`SELECT u.id,u.name,u.email,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?`).get(token);
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).authenticate(token);
+  const row = db.prepare(`SELECT s.created_at AS createdAt,u.id,u.name,u.email,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?`).get(token);
+  if (row && (!Number.isFinite(Date.parse(row.createdAt)) || Date.now() - Date.parse(row.createdAt) > SESSION_MAX_AGE_MS)) {
+    db.prepare('DELETE FROM sessions WHERE token=?').run(token);
+    return null;
+  }
   return row ? publicUser(row) : null;
 }
 
-export function logout(token) { if (token) db.prepare('DELETE FROM sessions WHERE token=?').run(token); }
+export async function logout(token) {
+  if (!token) return;
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).logout(token);
+  db.prepare('DELETE FROM sessions WHERE token=?').run(token);
+}
 
-export function currentProfile(user) {
+export async function currentProfile(user) {
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).currentProfile(user);
   return { user, classes: getClassListForUser.all(user.id, user.id) };
 }
 
-export function createClass(user, { name }) {
+export async function createClass(user, { name }) {
   requireRole(user, 'teacher');
   name = String(name || '').trim().slice(0, 80);
   if (name.length < 2) throw Object.assign(new Error('Class name must be at least 2 characters.'), { statusCode: 400 });
-  let code;
-  do { code = randomInt(0, 36 ** 6).toString(36).toUpperCase().padStart(6, '0'); }
-  while (db.prepare('SELECT 1 FROM classes WHERE join_code=?').get(code));
+  let code = randomInt(0, 36 ** 6).toString(36).toUpperCase().padStart(6, '0');
   const id = randomBytes(12).toString('hex');
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).createClass(user, { id, name, joinCode: code });
+  while (db.prepare('SELECT 1 FROM classes WHERE join_code=?').get(code)) code = randomInt(0, 36 ** 6).toString(36).toUpperCase().padStart(6, '0');
   db.prepare('INSERT INTO classes VALUES(?,?,?,?,?)').run(id, user.id, name, code, new Date().toISOString());
   return getClassListForUser.all(user.id, user.id).find(item => item.id === id);
 }
 
-export function joinClass(user, { code }) {
+export async function joinClass(user, { code }) {
   requireRole(user, 'student');
+  code = String(code || '').trim().toUpperCase();
+  if (remoteDatabase || process.env.VERCEL) {
+    const item = await (await postgresStore()).joinClass(user, code);
+    if (!item) throw Object.assign(new Error('No class matches that join code.'), { statusCode: 404 });
+    return item;
+  }
   const item = db.prepare(`SELECT c.id,c.name,c.join_code AS joinCode,c.teacher_id AS teacherId,u.name AS teacherName
-    FROM classes c JOIN users u ON u.id=c.teacher_id WHERE c.join_code=?`).get(String(code || '').trim().toUpperCase());
+    FROM classes c JOIN users u ON u.id=c.teacher_id WHERE c.join_code=?`).get(code);
   if (!item) throw Object.assign(new Error('No class matches that join code.'), { statusCode: 404 });
   db.prepare('INSERT OR IGNORE INTO enrollments VALUES(?,?,?)').run(item.id, user.id, new Date().toISOString());
   return item;
 }
 
-export function saveReport(user, payload) {
+export async function saveReport(user, payload) {
   requireRole(user, 'student');
-  if (!payload || !Array.isArray(payload.attempts) || payload.attempts.length > 1000) throw Object.assign(new Error('Invalid learning report.'), { statusCode: 400 });
+  const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype;
+  if (!isPlainObject(payload) || !Array.isArray(payload.attempts)
+    || payload.attempts.some(attempt => !isPlainObject(attempt))
+    || payload.attempts.length > 1000
+    || (payload.mastery !== null && payload.mastery !== undefined && !isPlainObject(payload.mastery))
+    || (payload.prereqStatus !== null && payload.prereqStatus !== undefined && !isPlainObject(payload.prereqStatus))) {
+    throw Object.assign(new Error('Invalid learning report.'), { statusCode: 400 });
+  }
   const report = { attempts: payload.attempts, mastery: payload.mastery || {}, prereqStatus: payload.prereqStatus || {} };
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).saveReport(user, report);
   db.prepare(`INSERT INTO reports VALUES(?,?,?) ON CONFLICT(student_id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at`)
     .run(user.id, JSON.stringify(report), new Date().toISOString());
   return { saved: true };
 }
 
-export function ownReport(user) {
+export async function ownReport(user) {
   requireRole(user, 'student');
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).ownReport(user);
   const row = db.prepare('SELECT payload,updated_at AS updatedAt FROM reports WHERE student_id=?').get(user.id);
   return row ? { ...JSON.parse(row.payload), updatedAt: row.updatedAt } : { attempts: [], mastery: {}, prereqStatus: {} };
 }
 
-export function classReports(user) {
+export async function classReports(user) {
   requireRole(user, 'teacher');
+  if (remoteDatabase || process.env.VERCEL) return (await postgresStore()).classReports(user);
   const students = db.prepare(`
     SELECT u.id,u.name,u.email,c.id AS classId,c.name AS className,r.payload,r.updated_at AS updatedAt
     FROM classes c JOIN enrollments e ON e.class_id=c.id JOIN users u ON u.id=e.student_id

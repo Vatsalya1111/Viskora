@@ -14,7 +14,7 @@ Follow these steps to set up and run Viskora locally on your machine.
 
 Ensure you have the following installed on your system:
 
-- [Node.js](https://nodejs.org/) (`v22.13.0` or newer; the local SQLite store uses the built-in `node:sqlite` module)
+- [Node.js](https://nodejs.org/) (`v24.x`; Vercel and local builds use the same Node.js major version)
 - `npm` (bundled with Node.js) or `yarn` / `pnpm`
 
 Check your Node and npm versions:
@@ -97,4 +97,15 @@ Typed submissions use the local analysis API. The app checks supported work loca
 
 Viskora now supports teacher and student profiles. Create an account from the sign-in screen, then teachers can create classes and share the generated six-character join code. Students enter that code in their sidebar to connect their profile to the teacher. Students can see their own tutor and progress reports; teachers can view class-level summaries and each joined student's submissions, analysis notes, and mastery overview.
 
-Accounts, sessions, class memberships, and reports are stored in a local SQLite database at `data/viskora.sqlite` (ignored by Git). Set the `VISKORA_DB_PATH` process environment variable to use a different database path. The API hashes passwords and checks the signed-in user's role and class ownership before returning or updating report data. For a multi-instance deployment, place the SQLite file on persistent storage and run a single API instance; use HTTPS and back up the database as you would other account data.
+In local development, accounts, sessions, class memberships, and reports are stored in `data/viskora.sqlite` (ignored by Git). Set the `VISKORA_DB_PATH` process environment variable to use a different local path. In production, use a hosted Postgres database: the app uses Neon when `DATABASE_URL` is set and creates its tables on first use. It deliberately does not use Vercel's temporary filesystem for account data. The API hashes passwords and checks the signed-in user's role and class ownership before returning or updating report data.
+
+## Deploy to Vercel
+
+This repository includes a Vercel Node.js function for `/api/*`, a Vite static build configuration, and a 300-second function duration for the AI analysis route.
+
+1. Push the repository to GitHub and import it in Vercel. The project root is this folder; the build command is `npm run build` and the output folder is `dist`.
+2. Add a Neon Postgres integration to the Vercel project. Vercel's former Postgres product has moved to Marketplace integrations; Neon supplies the `DATABASE_URL` connection string.
+3. Add `GEMINI_API_KEY` in Vercel Project Settings → Environment Variables if you want AI review and image transcription. Set both variables for Preview and Production, then redeploy.
+4. Deploy with Vercel or push to the connected Git branch. Tables are created the first time an API route is used.
+
+Copy `.env.example` as a reference for local environment variables. Keep real keys in Vercel's encrypted environment settings or a private local `.env` file. The serverless function accepts JSON request bodies up to 4 MB. Vercel deployment and environment variable setup are described in the [Vite on Vercel guide](https://vercel.com/docs/frameworks/frontend/vite), [Vercel Postgres guide](https://vercel.com/docs/postgres), and [environment variables guide](https://vercel.com/docs/environment-variables).

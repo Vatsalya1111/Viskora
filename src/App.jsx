@@ -40,7 +40,7 @@ export default function App() {
     let active = true;
     accountRequest('/api/me').then(profile => {
       if (active) setSession(current => ({ ...current, ...profile }));
-    }).catch(() => { if (active) { clearSession(); setSession(null); } })
+    }).catch(error => { if (active && error.status === 401) { clearSession(); setSession(null); } })
       .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
   }, []);

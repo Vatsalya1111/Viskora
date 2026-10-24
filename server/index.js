@@ -1,22 +1,8 @@
+import './loadEnv.js';
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 import { analyzeSubmission, transcribeImage, verifyAttemptWithAI, tutorChat } from './analysis.js';
 import { register, login, authenticate, logout, currentProfile, createClass, joinClass, saveReport, ownReport, classReports } from './accountStore.js';
-
-// Load private local settings from the project root without overriding shell env values.
-const envPath = fileURLToPath(new URL('../.env', import.meta.url));
-try {
-  for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
-    if (!match || match[1] in process.env) continue;
-    const value = match[2].replace(/^(['"])(.*)\1$/, '$2');
-    process.env[match[1]] = value;
-  }
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error;
-}
 
 export async function handleAnalysisRequest(request, response) {
   response.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
@@ -27,44 +13,49 @@ export async function handleAnalysisRequest(request, response) {
   const accountRoutes = ['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/me', '/api/classes', '/api/classes/join', '/api/reports/self', '/api/reports/classes'];
   if (!accountRoutes.includes(route) && (request.method !== 'POST' || !['/api/analyze', '/api/chat'].includes(route))) { response.writeHead(404).end(); return; }
   try {
-    let raw = '';
-    for await (const chunk of request) {
-      raw += chunk;
-      if (raw.length > 14 * 1024 * 1024) throw Object.assign(new Error('Request exceeds the 10 MB image limit.'), { statusCode: 413 });
+    let input;
+    if (request.body !== undefined) {
+      input = typeof request.body === 'string' ? JSON.parse(request.body || '{}') : request.body;
+    } else {
+      let raw = '';
+      for await (const chunk of request) {
+        raw += chunk;
+        if (raw.length > 14 * 1024 * 1024) throw Object.assign(new Error('Request exceeds the 10 MB image limit.'), { statusCode: 413 });
+      }
+      input = JSON.parse(raw || '{}');
     }
-    const input = JSON.parse(raw || '{}');
     if (route === '/api/auth/register' || route === '/api/auth/login') {
-      const result = route.endsWith('register') ? register(input) : login(input);
+      const result = route.endsWith('register') ? await register(input) : await login(input);
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
       return;
     }
     const token = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const user = authenticate(token);
+    const user = await authenticate(token);
     if (route === '/api/auth/logout' && request.method === 'POST') {
-      logout(token);
+      await logout(token);
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ loggedOut: true }));
       return;
     } else if (route === '/api/me' && request.method === 'GET') {
       if (!user) throw Object.assign(new Error('Sign in to continue.'), { statusCode: 401 });
-      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(currentProfile(user)));
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(await currentProfile(user)));
       return;
     } else if (route === '/api/classes' && request.method === 'POST') {
-      const item = createClass(user, input);
+      const item = await createClass(user, input);
       response.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify(item));
       return;
     } else if (route === '/api/classes/join' && request.method === 'POST') {
-      const item = joinClass(user, input);
+      const item = await joinClass(user, input);
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(item));
       return;
     } else if (route === '/api/reports/self' && request.method === 'GET') {
-      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(ownReport(user)));
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(await ownReport(user)));
       return;
     } else if (route === '/api/reports/self' && request.method === 'PUT') {
-      const result = saveReport(user, input);
+      const result = await saveReport(user, input);
       response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(result));
       return;
     } else if (route === '/api/reports/classes' && request.method === 'GET') {
-      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(classReports(user)));
+      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(await classReports(user)));
       return;
     } else if (accountRoutes.includes(route)) {
       response.writeHead(405).end();

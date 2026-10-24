@@ -327,7 +327,6 @@ export function AppProvider({ children, userId }) {
       reportReady.current = true;
     }).catch(error => {
       console.error('Could not load your saved learning report.', error);
-      reportReady.current = true;
     });
     return () => { active = false; };
   }, [userId]);

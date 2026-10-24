@@ -31,9 +31,9 @@
   display: inline-block;
   font-size: 9.5px;
   font-weight: 700;
-  color: #4F46E5;
-  background: #EEF2FF;
-  border: 1px solid #C7D2FE;
+  color: var(--brand-primary);
+  background: var(--brand-primary-light);
+  border: 1px solid #c6c8dd;
   padding: 1px 5px;
   border-radius: 4px;
   margin-left: 6px;
